@@ -1,0 +1,12 @@
+[package]
+name = "src-bgp"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bgpkit-parser.workspace = true
+flate2.workspace = true
+ipnet.workspace = true
+model.workspace = true

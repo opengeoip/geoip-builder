@@ -1,0 +1,26 @@
+[package]
+name = "cli"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "geoip-builder"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+ipnet.workspace = true
+ipnetwork.workspace = true
+maxminddb.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+fetch.workspace = true
+merge.workspace = true
+model.workspace = true
+mmdb-writer.workspace = true
+src-asnames.workspace = true
+src-bgp.workspace = true
+src-delegated.workspace = true
+src-rpki.workspace = true

@@ -1,0 +1,32 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+publish = false
+
+[workspace.dependencies]
+anyhow = "1.0.104"
+bgpkit-parser = { version = "0.22.0", default-features = false, features = ["parser"] }
+clap = { version = "4.6.7", features = ["derive"] }
+flate2 = "1.1.10"
+ipnet = "2.12.2"
+ipnetwork = "0.21.1"
+maxminddb = "0.32.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.151"
+tempfile = "3.27.0"
+ureq = "3.4.2"
+model = { path = "crates/model" }
+fetch = { path = "crates/fetch" }
+src-delegated = { path = "crates/src-delegated" }
+src-asnames = { path = "crates/src-asnames" }
+src-rpki = { path = "crates/src-rpki" }
+src-bgp = { path = "crates/src-bgp" }
+mmdb-writer = { path = "crates/mmdb-writer" }
+merge = { path = "crates/merge" }
+
+[profile.release]
+lto = "thin"
