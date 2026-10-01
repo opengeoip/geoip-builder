@@ -6,6 +6,12 @@ use src_rpki::{Validator, Validity};
 
 pub const LANGUAGES: [&str; 1] = ["en"];
 
+fn clear_special_ranges(db: &mut Writer) {
+    for range in model::special::ranges() {
+        db.remove(range.network);
+    }
+}
+
 fn writer(database_type: &str, description: &str, build_epoch: u64) -> Writer {
     LANGUAGES
         .iter()
@@ -35,6 +41,7 @@ pub fn country_db(mut delegations: Vec<Delegation>, build_epoch: u64) -> (Writer
         ]);
         db.insert(delegation.network, &value);
     }
+    clear_special_ranges(&mut db);
     (
         db,
         CountryStats {
@@ -130,6 +137,7 @@ pub fn asn_db(
         }
         db.insert(prefix, &Value::map(entries));
     }
+    clear_special_ranges(&mut db);
     (db, stats)
 }
 
@@ -160,14 +168,14 @@ mod tests {
     fn fixture(policy: RpkiPolicy) -> (Reader<Vec<u8>>, AsnStats) {
         let routes = vec![
             Route {
-                prefix: "10.0.0.0/16".parse().unwrap(),
+                prefix: "11.0.0.0/16".parse().unwrap(),
                 origins: vec![Origin {
                     asn: 64500,
                     peers: 10,
                 }],
             },
             Route {
-                prefix: "10.0.1.0/24".parse().unwrap(),
+                prefix: "11.0.1.0/24".parse().unwrap(),
                 origins: vec![
                     Origin {
                         asn: 64666,
@@ -180,14 +188,14 @@ mod tests {
                 ],
             },
             Route {
-                prefix: "10.0.2.0/24".parse().unwrap(),
+                prefix: "11.0.2.0/24".parse().unwrap(),
                 origins: vec![Origin {
                     asn: 64666,
                     peers: 50,
                 }],
             },
             Route {
-                prefix: "192.0.2.0/24".parse().unwrap(),
+                prefix: "193.0.2.0/24".parse().unwrap(),
                 origins: vec![Origin {
                     asn: 64501,
                     peers: 50,
@@ -195,7 +203,7 @@ mod tests {
             },
         ];
         let validator = Validator::new(&[Vrp {
-            prefix: "10.0.0.0/16".parse().unwrap(),
+            prefix: "11.0.0.0/16".parse().unwrap(),
             max_length: 24,
             asn: 64500,
         }]);
@@ -234,10 +242,10 @@ mod tests {
     fn valid_only_keeps_rpki_valid_origins() {
         let (reader, stats) = fixture(RpkiPolicy::ValidOnly);
         assert_eq!(stats, STATS);
-        assert_eq!(asn_of(&reader, "10.0.1.1"), Some(64500));
-        assert_eq!(asn_of(&reader, "10.0.2.1"), Some(64500));
-        assert_eq!(asn_of(&reader, "192.0.2.1"), None);
-        let ip: IpAddr = "10.0.2.1".parse().unwrap();
+        assert_eq!(asn_of(&reader, "11.0.1.1"), Some(64500));
+        assert_eq!(asn_of(&reader, "11.0.2.1"), Some(64500));
+        assert_eq!(asn_of(&reader, "193.0.2.1"), None);
+        let ip: IpAddr = "11.0.2.1".parse().unwrap();
         let org: Option<String> = reader
             .lookup(ip)
             .unwrap()
@@ -256,23 +264,23 @@ mod tests {
                 ..STATS
             }
         );
-        assert_eq!(asn_of(&reader, "10.0.1.1"), Some(64500));
-        assert_eq!(asn_of(&reader, "10.0.2.1"), Some(64500));
-        assert_eq!(rpki_of(&reader, "10.0.2.1").as_deref(), Some("valid"));
-        assert_eq!(asn_of(&reader, "192.0.2.1"), Some(64501));
-        assert_eq!(rpki_of(&reader, "192.0.2.1").as_deref(), Some("not-found"));
+        assert_eq!(asn_of(&reader, "11.0.1.1"), Some(64500));
+        assert_eq!(asn_of(&reader, "11.0.2.1"), Some(64500));
+        assert_eq!(rpki_of(&reader, "11.0.2.1").as_deref(), Some("valid"));
+        assert_eq!(asn_of(&reader, "193.0.2.1"), Some(64501));
+        assert_eq!(rpki_of(&reader, "193.0.2.1").as_deref(), Some("not-found"));
     }
 
     #[test]
     fn more_specific_delegations_win() {
         let delegations = vec![
             Delegation {
-                network: "2001:db8:1::/48".parse().unwrap(),
+                network: "2a00:1450:1::/48".parse().unwrap(),
                 country: "FR".into(),
                 registry: Registry::RipeNcc,
             },
             Delegation {
-                network: "2001:db8::/32".parse().unwrap(),
+                network: "2a00:1450::/32".parse().unwrap(),
                 country: "DE".into(),
                 registry: Registry::RipeNcc,
             },
@@ -287,7 +295,40 @@ mod tests {
                 .decode_path(&maxminddb::path!["country", "iso_code"])
                 .unwrap()
         };
-        assert_eq!(country("2001:db8:1::1").as_deref(), Some("FR"));
-        assert_eq!(country("2001:db8:2::1").as_deref(), Some("DE"));
+        assert_eq!(country("2a00:1450:1::1").as_deref(), Some("FR"));
+        assert_eq!(country("2a00:1450:2::1").as_deref(), Some("DE"));
+    }
+
+    #[test]
+    fn special_purpose_ranges_never_get_data() {
+        let delegations = vec![
+            Delegation {
+                network: "192.0.0.0/8".parse().unwrap(),
+                country: "US".into(),
+                registry: Registry::Arin,
+            },
+            Delegation {
+                network: "2001:db8::/32".parse().unwrap(),
+                country: "DE".into(),
+                registry: Registry::RipeNcc,
+            },
+        ];
+        let (db, _) = country_db(delegations, 0);
+        let reader = read(db);
+        reader.verify().unwrap();
+        let country = |ip: &str| -> Option<String> {
+            let ip: IpAddr = ip.parse().unwrap();
+            reader
+                .lookup(ip)
+                .unwrap()
+                .decode_path(&maxminddb::path!["country", "iso_code"])
+                .unwrap()
+        };
+        assert_eq!(country("192.1.2.3").as_deref(), Some("US"));
+        assert_eq!(country("192.168.1.1"), None);
+        assert_eq!(country("192.0.2.1"), None);
+        assert_eq!(country("2001:db8::1"), None);
+        assert_eq!(country("2002:c001:203::1").as_deref(), Some("US"));
+        assert_eq!(country("2002:c0a8:101::1"), None);
     }
 }

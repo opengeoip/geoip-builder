@@ -17,7 +17,7 @@ target/release/geoip-builder compare --kind country out/country.mmdb GeoLite2-Co
 - `--rpki-valid-only` restricts the ASN database to RPKI-valid routes (see below).
 - `--collector` (repeatable, default `rrc00`) selects the RIPE RIS collectors whose RIB dumps are used. `--vrps-url` points to another VRP export, such as a local Routinator.
 - `lookup` prints the network and record matching each address.
-- `compare` measures how far a database is from a reference one, weighted by IPv4 addresses and IPv6 /48 networks, with the top disagreements.
+- `compare` measures how far a database is from a reference one, weighted by IPv4 addresses and IPv6 /48 networks, with the top disagreements and the largest ranges behind each of them.
 
 A full run takes about 3 minutes, almost all of it downloading the RIB dump, and peaks at about 450 MB of memory.
 
@@ -48,6 +48,15 @@ RPKI-invalid routes are never kept. For every prefix seen in the RIB dumps:
 4. if no VRP covers the prefix (`NotFound`), the best-ranked origin is kept, unless `--rpki-valid-only` is set.
 
 A dropped prefix falls back to the closest kept covering prefix, if any, so a hijacked more specific resolves to its legitimate aggregate. A VRP for AS0 never validates anything. Prefixes longer than /24 in IPv4 or /48 in IPv6, shorter than /8 or /16, IPv6 prefixes outside `2000::/3`, and the Teredo (`2001::/32`) and 6to4 (`2002::/16`) ranges are ignored. The organization is the description of the AS in `asn.txt`, or its handle when it has none.
+
+## Special-purpose ranges
+
+Ranges that are not globally reachable never carry data in either database, like in GeoLite2, even when a RIR delegation or a BGP announcement covers them. They come from the IANA [IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry/) and [IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry/) special-purpose registries, plus multicast and the reserved 240.0.0.0/4, and are listed in `crates/model/src/special.rs`:
+
+- IPv4: this network (0/8), private-use (RFC 1918), shared address space (100.64/10), loopback, link local, IETF protocol assignments (192.0.0/24), documentation, benchmarking, the deprecated 6to4 relay anycast (192.88.99/24), multicast and reserved;
+- IPv6: local-use NAT64 (64:ff9b:1::/48), discard-only, Teredo, benchmarking, deprecated ORCHID, documentation (2001:db8::/32, 3fff::/20), SRv6 SIDs, unique-local, link-local and multicast.
+
+The few globally reachable entries of those registries (AS112, AMT, the well-known NAT64 prefix) are left alone. BGP routes inside a special range are dropped before validation, and the ranges are cleared from the tree after every insertion. `2002::/16` is then aliased back to the IPv4 tree, so a 6to4 address resolves to the record of the IPv4 address it embeds.
 
 ## Writing the files
 

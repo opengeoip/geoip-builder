@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::path::Path;
 
 use anyhow::Result;
@@ -14,6 +14,18 @@ pub enum Kind {
 }
 
 type Interval = (u128, u128, String);
+type Pair = (String, String);
+type Segment = (f64, u128, u128);
+
+const EXAMPLES: usize = 3;
+
+fn address(value: u128, v4: bool) -> IpAddr {
+    if v4 {
+        IpAddr::V4(Ipv4Addr::from(value as u32))
+    } else {
+        IpAddr::V6(Ipv6Addr::from(value))
+    }
+}
 
 fn intervals(reader: &Reader<Vec<u8>>, kind: Kind, scope: IpNetwork) -> Result<Vec<Interval>> {
     let mut out = Vec::new();
@@ -49,7 +61,8 @@ struct Tally {
     disagree: f64,
     only_reference: f64,
     only_ours: f64,
-    pairs: HashMap<(String, String), f64>,
+    pairs: HashMap<Pair, f64>,
+    examples: HashMap<Pair, Vec<Segment>>,
     missing: HashMap<String, f64>,
     extra: HashMap<String, f64>,
 }
@@ -86,7 +99,14 @@ fn sweep(ours: &[Interval], reference: &[Interval], unit: f64) -> Tally {
             (Some(a), Some(b)) if a.2 == b.2 => tally.agree += weight,
             (Some(a), Some(b)) => {
                 tally.disagree += weight;
-                *tally.pairs.entry((b.2.clone(), a.2.clone())).or_default() += weight;
+                let pair = (b.2.clone(), a.2.clone());
+                *tally.pairs.entry(pair.clone()).or_default() += weight;
+                let examples = tally.examples.entry(pair).or_default();
+                examples.push((weight, pos, end));
+                if examples.len() > 2 * EXAMPLES {
+                    examples.sort_by(|a, b| b.0.total_cmp(&a.0));
+                    examples.truncate(EXAMPLES);
+                }
             }
             (None, Some(b)) => {
                 tally.only_reference += weight;
@@ -113,7 +133,7 @@ fn top<K: std::fmt::Debug>(map: &HashMap<K, f64>, n: usize) -> Vec<(&K, f64)> {
     items
 }
 
-fn report(label: &str, unit: &str, tally: &Tally, limit: usize) {
+fn report(label: &str, unit: &str, v4: bool, tally: &Tally, limit: usize) {
     let reference = tally.agree + tally.disagree + tally.only_reference;
     let pct = |v: f64| {
         if reference > 0.0 {
@@ -150,6 +170,11 @@ fn report(label: &str, unit: &str, tally: &Tally, limit: usize) {
             "    {reference:>10} -> {ours:<10} {weight:>14.0}  {:>6.2} %",
             pct(weight)
         );
+        let mut examples = tally.examples[&(reference.clone(), ours.clone())].clone();
+        examples.sort_by(|a, b| b.0.total_cmp(&a.0));
+        for (_, start, end) in examples.iter().take(EXAMPLES) {
+            println!("        {} - {}", address(*start, v4), address(*end, v4));
+        }
     }
     println!("  top missing:");
     for (key, weight) in top(&tally.missing, limit) {
@@ -165,14 +190,20 @@ fn report(label: &str, unit: &str, tally: &Tally, limit: usize) {
 pub fn run(kind: Kind, ours: &Path, reference: &Path, limit: usize) -> Result<()> {
     let ours = Reader::open_readfile(ours)?;
     let reference = Reader::open_readfile(reference)?;
-    for (label, unit_label, scope, unit) in [
-        ("IPv4", "addresses", "0.0.0.0/0", 1.0),
-        ("IPv6 (2000::/3)", "/48 networks", "2000::/3", 2f64.powi(80)),
+    for (label, unit_label, scope, unit, v4) in [
+        ("IPv4", "addresses", "0.0.0.0/0", 1.0, true),
+        (
+            "IPv6 (2000::/3)",
+            "/48 networks",
+            "2000::/3",
+            2f64.powi(80),
+            false,
+        ),
     ] {
         let scope: IpNetwork = scope.parse()?;
         let a = intervals(&ours, kind, scope)?;
         let b = intervals(&reference, kind, scope)?;
-        report(label, unit_label, &sweep(&a, &b, unit), limit);
+        report(label, unit_label, v4, &sweep(&a, &b, unit), limit);
     }
     Ok(())
 }

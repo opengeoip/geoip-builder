@@ -1,3 +1,5 @@
+pub mod special;
+
 use std::fmt;
 use std::str::FromStr;
 

@@ -145,6 +145,11 @@ impl Writer {
         self.set(bits, length, Record::Data(offset));
     }
 
+    pub fn remove(&mut self, network: IpNet) {
+        let (bits, length) = key(network);
+        self.set(bits, length, Record::Empty);
+    }
+
     fn data_offset(&mut self, value: &Value) -> u32 {
         let mut encoded = Vec::new();
         value.encode(&mut encoded);

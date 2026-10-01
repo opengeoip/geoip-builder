@@ -85,16 +85,12 @@ impl RibCollector {
 }
 
 pub fn is_routable(prefix: IpNet) -> bool {
-    match prefix {
+    (match prefix {
         IpNet::V4(net) => IPV4_LENGTHS.contains(&net.prefix_len()),
         IpNet::V6(net) => {
-            let segments = net.addr().segments();
-            IPV6_LENGTHS.contains(&net.prefix_len())
-                && segments[0] & 0xe000 == 0x2000
-                && segments[0] != 0x2002
-                && (segments[0], segments[1]) != (0x2001, 0)
+            IPV6_LENGTHS.contains(&net.prefix_len()) && net.addr().segments()[0] & 0xe000 == 0x2000
         }
-    }
+    }) && model::special::find(prefix).is_none()
 }
 
 #[cfg(test)]
@@ -106,11 +102,13 @@ mod tests {
         assert!(is_routable("1.1.1.0/24".parse().unwrap()));
         assert!(!is_routable("1.1.1.0/25".parse().unwrap()));
         assert!(!is_routable("0.0.0.0/0".parse().unwrap()));
-        assert!(is_routable("2001:db8::/32".parse().unwrap()));
-        assert!(!is_routable("2001:db8::/64".parse().unwrap()));
+        assert!(!is_routable("2001:db8::/32".parse().unwrap()));
+        assert!(!is_routable("2a00:1450::/64".parse().unwrap()));
         assert!(!is_routable("fc00::/16".parse().unwrap()));
         assert!(!is_routable("2002::/16".parse().unwrap()));
         assert!(!is_routable("2001::/32".parse().unwrap()));
         assert!(is_routable("2001:4860::/32".parse().unwrap()));
+        assert!(!is_routable("10.0.0.0/8".parse().unwrap()));
+        assert!(!is_routable("192.88.99.0/24".parse().unwrap()));
     }
 }
