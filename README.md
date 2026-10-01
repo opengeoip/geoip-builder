@@ -15,9 +15,11 @@ target/release/geoip-builder compare --kind country out/country.mmdb GeoLite2-Co
 - `build` reads only `--data-dir` and writes `country.mmdb`, `city.mmdb` and `asn.mmdb` into `--out-dir`. A build never touches the network, so it can be replayed on a saved data directory.
 - `run` is `fetch` followed by `build`.
 - `--rpki-valid-only` restricts the ASN database to RPKI-valid routes (see below).
+- a source that fails to download keeps its previous copy; `fetch` reports it and exits with an error once everything else is done.
 - `--geofeed-workers` (default 32) sets how many hosts are crawled in parallel; the URLs of one host are fetched one after the other, 500 ms apart, with one retry after a `429`.
 - `--collector` (repeatable, default `rrc00`) selects the RIPE RIS collectors whose RIB dumps are used. `--vrps-url` points to another VRP export, such as a local Routinator.
 - `lookup` prints the network and record matching each address.
+- `evaluate` checks one or more databases against the RIPE Atlas probes: for every connected probe with a public address, the country it reports versus the country each database gives, per address family, with the most frequent errors and, for the first two databases, which one is right when they disagree. `--only <country>` and `--anchors-only` narrow the probes.
 - `compare` measures how far a database is from a reference one, weighted by IPv4 addresses and IPv6 /48 networks, with the top disagreements and the largest ranges behind each of them. `--only <key>` (a country code, or `AS<n>`) restricts it to the ranges where either database has that value.
 
 A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 for the geofeeds. `build` takes about 50 seconds and peaks at about 1.5 GB of memory.
@@ -31,6 +33,7 @@ A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 fo
 | [rpki-client VRP export](https://console.rpki-client.org/) | `vrps.json` | route origin validation |
 | [RIPE RIS](https://ris.ripe.net/) RIB dumps (MRT) | `ris-<collector>.bview.gz` | origin AS of every announced prefix |
 | RPSL dumps of RIPE NCC (`inetnum`, `inet6num`), APNIC (`inetnum`, `inet6num`), AFRINIC and LACNIC | `rpsl-*.gz` | country of sub-allocations and assignments, geofeed references ([RFC 9632](https://www.rfc-editor.org/rfc/rfc9632)) |
+| [RIPE Atlas probe archive](https://ftp.ripe.net/ripe/atlas/probes/archive/) of the previous day | `atlas-probes.json.bz2` | ground truth for `evaluate` |
 | [RFC 8805](https://www.rfc-editor.org/rfc/rfc8805) geofeeds referenced by those objects | `geofeeds/<hash>.csv` | country, region, city and postal code declared by the operator |
 | Geofeeds published by cloud operators: AWS, Google Cloud, Google corporate, Cloudflare, Linode, DigitalOcean | `geofeeds/<hash>.csv` | same, for space registered at ARIN |
 

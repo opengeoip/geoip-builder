@@ -86,7 +86,6 @@ impl Fetcher {
         let agent = Agent::config_builder()
             .user_agent(concat!("geoip-builder/", env!("CARGO_PKG_VERSION")))
             .timeout_connect(Some(options.connect_timeout))
-            .timeout_recv_body(Some(Duration::from_secs(120)))
             .timeout_global(options.global_timeout)
             .build()
             .new_agent();

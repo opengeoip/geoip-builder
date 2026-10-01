@@ -1,5 +1,6 @@
 mod build;
 mod compare;
+mod evaluate;
 mod sources;
 
 use std::fs;
@@ -64,6 +65,18 @@ enum Command {
         database: PathBuf,
         addresses: Vec<IpAddr>,
     },
+    Evaluate {
+        #[arg(long, default_value = "data/atlas-probes.json.bz2")]
+        truth: PathBuf,
+        #[arg(long)]
+        only: Option<String>,
+        #[arg(long)]
+        anchors_only: bool,
+        #[arg(long, default_value_t = 10)]
+        top: usize,
+        #[arg(required = true)]
+        databases: Vec<PathBuf>,
+    },
     Compare {
         #[arg(long, value_enum)]
         kind: compare::Kind,
@@ -78,10 +91,18 @@ enum Command {
 
 fn fetch_all(data: &DataArgs) -> Result<()> {
     let fetcher = Fetcher::new(&data.data_dir)?;
+    let mut failed = Vec::new();
     for source in sources::all(&data.collectors, &data.vrps_url) {
-        match fetcher.fetch(&source)? {
-            Outcome::Downloaded(size) => eprintln!("{}: downloaded {size} bytes", source.name),
-            Outcome::NotModified => eprintln!("{}: not modified", source.name),
+        match fetcher.fetch(&source) {
+            Ok(Outcome::Downloaded(size)) => eprintln!("{}: downloaded {size} bytes", source.name),
+            Ok(Outcome::NotModified) => eprintln!("{}: not modified", source.name),
+            Err(error) => {
+                eprintln!(
+                    "{}: failed, keeping the previous copy: {error:#}",
+                    source.name
+                );
+                failed.push(source.name);
+            }
         }
     }
 
@@ -112,6 +133,9 @@ fn fetch_all(data: &DataArgs) -> Result<()> {
         .map(|(url, error)| format!("{url}\t{error}\n"))
         .collect();
     fs::write(dir.join("failures.tsv"), report)?;
+    if !failed.is_empty() {
+        anyhow::bail!("{} sources failed: {}", failed.len(), failed.join(", "));
+    }
     Ok(())
 }
 
@@ -153,6 +177,13 @@ fn main() -> Result<()> {
             database,
             addresses,
         } => lookup(database, addresses),
+        Command::Evaluate {
+            truth,
+            only,
+            anchors_only,
+            top,
+            databases,
+        } => evaluate::run(&truth, &databases, only.as_deref(), anchors_only, top),
         Command::Compare {
             kind,
             top,

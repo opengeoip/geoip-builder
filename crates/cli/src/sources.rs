@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use fetch::Source;
 use model::Registry;
 use src_geofeed::Seed;
@@ -15,6 +17,18 @@ pub fn delegated(registry: Registry) -> Source {
     Source::new(
         format!("delegated-{registry}"),
         format!("{base}/delegated-{registry}-extended-latest"),
+    )
+}
+
+pub fn atlas() -> Source {
+    let days = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64 / 86_400)
+        .unwrap_or_default();
+    let (year, month, day) = src_atlas::civil_from_days(days - 1);
+    Source::new(
+        "atlas-probes.json.bz2",
+        src_atlas::archive_url(year, month, day),
     )
 }
 
@@ -108,5 +122,6 @@ pub fn all(collectors: &[String], vrps_url: &str) -> Vec<Source> {
     sources.push(vrps(vrps_url));
     sources.extend(collectors.iter().map(|c| ris(c)));
     sources.extend(rpsl().into_iter().map(|(source, _)| source));
+    sources.push(atlas());
     sources
 }

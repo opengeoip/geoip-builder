@@ -9,6 +9,7 @@ publish = false
 
 [workspace.dependencies]
 anyhow = "1.0.104"
+bzip2 = "0.6.1"
 bgpkit-parser = { version = "0.22.0", default-features = false, features = ["parser"] }
 clap = { version = "4.6.7", features = ["derive"] }
 flate2 = "1.1.10"
@@ -26,6 +27,7 @@ src-asnames = { path = "crates/src-asnames" }
 src-rpki = { path = "crates/src-rpki" }
 src-rpsl = { path = "crates/src-rpsl" }
 src-geofeed = { path = "crates/src-geofeed" }
+src-atlas = { path = "crates/src-atlas" }
 src-bgp = { path = "crates/src-bgp" }
 mmdb-writer = { path = "crates/mmdb-writer" }
 merge = { path = "crates/merge" }
