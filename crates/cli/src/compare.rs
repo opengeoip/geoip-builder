@@ -67,7 +67,7 @@ struct Tally {
     extra: HashMap<String, f64>,
 }
 
-fn sweep(ours: &[Interval], reference: &[Interval], unit: f64) -> Tally {
+fn sweep(ours: &[Interval], reference: &[Interval], unit: f64, only: Option<&str>) -> Tally {
     let mut tally = Tally::default();
     let (mut i, mut j) = (0, 0);
     let mut pos: u128 = 0;
@@ -95,7 +95,14 @@ fn sweep(ours: &[Interval], reference: &[Interval], unit: f64) -> Tally {
             .min()
             .unwrap();
         let weight = (end - pos) as f64 / unit + 1.0 / unit;
+        let selected = only.is_none_or(|key| {
+            [covering_a, covering_b]
+                .into_iter()
+                .flatten()
+                .any(|x| x.2 == key)
+        });
         match (covering_a, covering_b) {
+            _ if !selected => {}
             (Some(a), Some(b)) if a.2 == b.2 => tally.agree += weight,
             (Some(a), Some(b)) => {
                 tally.disagree += weight;
@@ -187,7 +194,13 @@ fn report(label: &str, unit: &str, v4: bool, tally: &Tally, limit: usize) {
     println!();
 }
 
-pub fn run(kind: Kind, ours: &Path, reference: &Path, limit: usize) -> Result<()> {
+pub fn run(
+    kind: Kind,
+    ours: &Path,
+    reference: &Path,
+    limit: usize,
+    only: Option<&str>,
+) -> Result<()> {
     let ours = Reader::open_readfile(ours)?;
     let reference = Reader::open_readfile(reference)?;
     for (label, unit_label, scope, unit, v4) in [
@@ -203,7 +216,7 @@ pub fn run(kind: Kind, ours: &Path, reference: &Path, limit: usize) -> Result<()
         let scope: IpNetwork = scope.parse()?;
         let a = intervals(&ours, kind, scope)?;
         let b = intervals(&reference, kind, scope)?;
-        report(label, unit_label, v4, &sweep(&a, &b, unit), limit);
+        report(label, unit_label, v4, &sweep(&a, &b, unit, only), limit);
     }
     Ok(())
 }
@@ -216,10 +229,14 @@ mod tests {
     fn sweeps_overlapping_intervals() {
         let ours = vec![(0, 9, "FR".to_string()), (20, 29, "DE".to_string())];
         let reference = vec![(5, 24, "FR".to_string())];
-        let tally = sweep(&ours, &reference, 1.0);
+        let tally = sweep(&ours, &reference, 1.0, None);
         assert_eq!(tally.agree, 5.0);
         assert_eq!(tally.only_reference, 10.0);
         assert_eq!(tally.disagree, 5.0);
         assert_eq!(tally.only_ours, 10.0);
+        let tally = sweep(&ours, &reference, 1.0, Some("DE"));
+        assert_eq!(tally.agree, 0.0);
+        assert_eq!(tally.disagree, 5.0);
+        assert_eq!(tally.only_ours, 5.0);
     }
 }

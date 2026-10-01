@@ -18,7 +18,7 @@ target/release/geoip-builder compare --kind country out/country.mmdb GeoLite2-Co
 - `--geofeed-workers` (default 32) sets how many hosts are crawled in parallel; the URLs of one host are fetched one after the other, 500 ms apart, with one retry after a `429`.
 - `--collector` (repeatable, default `rrc00`) selects the RIPE RIS collectors whose RIB dumps are used. `--vrps-url` points to another VRP export, such as a local Routinator.
 - `lookup` prints the network and record matching each address.
-- `compare` measures how far a database is from a reference one, weighted by IPv4 addresses and IPv6 /48 networks, with the top disagreements and the largest ranges behind each of them.
+- `compare` measures how far a database is from a reference one, weighted by IPv4 addresses and IPv6 /48 networks, with the top disagreements and the largest ranges behind each of them. `--only <key>` (a country code, or `AS<n>`) restricts it to the ranges where either database has that value.
 
 A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 for the geofeeds. `build` takes about 40 seconds and peaks at about 900 MB of memory.
 

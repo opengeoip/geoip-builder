@@ -69,6 +69,8 @@ enum Command {
         kind: compare::Kind,
         #[arg(long, default_value_t = 15)]
         top: usize,
+        #[arg(long)]
+        only: Option<String>,
         ours: PathBuf,
         reference: PathBuf,
     },
@@ -154,8 +156,9 @@ fn main() -> Result<()> {
         Command::Compare {
             kind,
             top,
+            only,
             ours,
             reference,
-        } => compare::run(kind, &ours, &reference, top),
+        } => compare::run(kind, &ours, &reference, top, only.as_deref()),
     }
 }
