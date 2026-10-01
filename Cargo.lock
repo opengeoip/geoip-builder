@@ -209,6 +209,7 @@ dependencies = [
  "anyhow",
  "clap",
  "fetch",
+ "flate2",
  "ipnet",
  "ipnetwork",
  "maxminddb",
@@ -220,7 +221,9 @@ dependencies = [
  "src-asnames",
  "src-bgp",
  "src-delegated",
+ "src-geofeed",
  "src-rpki",
+ "src-rpsl",
 ]
 
 [[package]]
@@ -462,6 +465,7 @@ dependencies = [
  "maxminddb",
  "mmdb-writer",
  "model",
+ "serde",
  "src-rpki",
 ]
 
@@ -756,6 +760,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "src-geofeed"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "fetch",
+ "ipnet",
+ "model",
+]
+
+[[package]]
 name = "src-rpki"
 version = "0.1.0"
 dependencies = [
@@ -764,6 +778,16 @@ dependencies = [
  "model",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "src-rpsl"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ipnet",
+ "model",
+ "src-delegated",
 ]
 
 [[package]]

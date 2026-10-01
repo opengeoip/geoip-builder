@@ -24,6 +24,8 @@ fetch = { path = "crates/fetch" }
 src-delegated = { path = "crates/src-delegated" }
 src-asnames = { path = "crates/src-asnames" }
 src-rpki = { path = "crates/src-rpki" }
+src-rpsl = { path = "crates/src-rpsl" }
+src-geofeed = { path = "crates/src-geofeed" }
 src-bgp = { path = "crates/src-bgp" }
 mmdb-writer = { path = "crates/mmdb-writer" }
 merge = { path = "crates/merge" }

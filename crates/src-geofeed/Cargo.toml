@@ -1,15 +1,11 @@
 [package]
-name = "merge"
+name = "src-geofeed"
 edition.workspace = true
 version.workspace = true
 publish.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+fetch.workspace = true
 ipnet.workspace = true
-mmdb-writer.workspace = true
 model.workspace = true
-src-rpki.workspace = true
-
-[dev-dependencies]
-maxminddb.workspace = true
-serde.workspace = true

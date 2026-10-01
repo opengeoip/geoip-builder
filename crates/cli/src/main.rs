@@ -2,8 +2,10 @@ mod build;
 mod compare;
 mod sources;
 
+use std::fs;
 use std::net::IpAddr;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
@@ -26,6 +28,8 @@ struct DataArgs {
     vrps_url: String,
     #[arg(long)]
     rpki_valid_only: bool,
+    #[arg(long, default_value_t = 32)]
+    geofeed_workers: usize,
 }
 
 impl DataArgs {
@@ -78,6 +82,34 @@ fn fetch_all(data: &DataArgs) -> Result<()> {
             Outcome::NotModified => eprintln!("{}: not modified", source.name),
         }
     }
+
+    let references = build::geofeed_references(&data.data_dir)?;
+    let urls = build::geofeed_urls(&references);
+    let dir = build::geofeed_dir(&data.data_dir);
+    let fetcher = Fetcher::with_options(
+        &dir,
+        fetch::Options {
+            connect_timeout: Duration::from_secs(10),
+            global_timeout: Some(Duration::from_secs(120)),
+            max_size: 256 << 20,
+        },
+    )?;
+    let started = Instant::now();
+    let stats = src_geofeed::crawl(&fetcher, &urls, data.geofeed_workers);
+    eprintln!(
+        "geofeeds: {} URLs, {} downloaded, {} not modified, {} failed, in {:.1?}",
+        urls.len(),
+        stats.downloaded,
+        stats.not_modified,
+        stats.failures.len(),
+        started.elapsed()
+    );
+    let report: String = stats
+        .failures
+        .iter()
+        .map(|(url, error)| format!("{url}\t{error}\n"))
+        .collect();
+    fs::write(dir.join("failures.tsv"), report)?;
     Ok(())
 }
 

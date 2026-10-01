@@ -24,3 +24,6 @@ src-asnames.workspace = true
 src-bgp.workspace = true
 src-delegated.workspace = true
 src-rpki.workspace = true
+src-rpsl.workspace = true
+src-geofeed.workspace = true
+flate2.workspace = true

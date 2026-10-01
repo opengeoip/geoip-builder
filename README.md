@@ -1,6 +1,6 @@
 # geoip-builder
 
-Builds MaxMind DB (`.mmdb`) files, compatible with the GeoLite2 Country and ASN schemas, from public bulk data only: no WHOIS, no RDAP, no rate-limited API.
+Builds MaxMind DB (`.mmdb`) files, compatible with the GeoLite2 Country, City and ASN schemas, from public bulk data only: no WHOIS, no RDAP, no rate-limited API.
 
 ## Usage
 
@@ -11,15 +11,16 @@ target/release/geoip-builder lookup out/asn.mmdb 1.1.1.1 2a01:cb00::1
 target/release/geoip-builder compare --kind country out/country.mmdb GeoLite2-Country.mmdb
 ```
 
-- `fetch` downloads every source into `--data-dir`, with conditional requests (`If-None-Match`, `If-Modified-Since`), so running it often costs almost nothing when nothing changed.
-- `build` reads only `--data-dir` and writes `country.mmdb` and `asn.mmdb` into `--out-dir`. A build never touches the network, so it can be replayed on a saved data directory.
+- `fetch` downloads every source into `--data-dir`, then every geofeed referenced by the RPSL dumps into `--data-dir/geofeeds`, with conditional requests (`If-None-Match`, `If-Modified-Since`), so running it often costs little when nothing changed. Failed geofeeds are listed in `geofeeds/failures.tsv` and keep their previous copy, if any.
+- `build` reads only `--data-dir` and writes `country.mmdb`, `city.mmdb` and `asn.mmdb` into `--out-dir`. A build never touches the network, so it can be replayed on a saved data directory.
 - `run` is `fetch` followed by `build`.
 - `--rpki-valid-only` restricts the ASN database to RPKI-valid routes (see below).
+- `--geofeed-workers` (default 32) sets how many hosts are crawled in parallel; the URLs of one host are fetched one after the other, 500 ms apart, with one retry after a `429`.
 - `--collector` (repeatable, default `rrc00`) selects the RIPE RIS collectors whose RIB dumps are used. `--vrps-url` points to another VRP export, such as a local Routinator.
 - `lookup` prints the network and record matching each address.
 - `compare` measures how far a database is from a reference one, weighted by IPv4 addresses and IPv6 /48 networks, with the top disagreements and the largest ranges behind each of them.
 
-A full run takes about 3 minutes, almost all of it downloading the RIB dump, and peaks at about 450 MB of memory.
+A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 for the geofeeds. `build` takes about 40 seconds and peaks at about 900 MB of memory.
 
 ## Sources
 
@@ -29,12 +30,29 @@ A full run takes about 3 minutes, almost all of it downloading the RIB dump, and
 | [RIPE NCC AS names](https://ftp.ripe.net/ripe/asnames/asn.txt), compiled from the five RIRs | `asn.txt` | AS organization names |
 | [rpki-client VRP export](https://console.rpki-client.org/) | `vrps.json` | route origin validation |
 | [RIPE RIS](https://ris.ripe.net/) RIB dumps (MRT) | `ris-<collector>.bview.gz` | origin AS of every announced prefix |
+| RPSL dumps of RIPE NCC (`inetnum`, `inet6num`), APNIC (`inetnum`, `inet6num`), AFRINIC and LACNIC | `rpsl-*.gz` | geofeed references ([RFC 9632](https://www.rfc-editor.org/rfc/rfc9632)) |
+| [RFC 8805](https://www.rfc-editor.org/rfc/rfc8805) geofeeds referenced by those objects | `geofeeds/<hash>.csv` | country, region, city and postal code declared by the operator |
+| Geofeeds published by cloud operators: AWS, Google Cloud, Google corporate, Cloudflare, Linode, DigitalOcean | `geofeeds/<hash>.csv` | same, for space registered at ARIN |
 
-## Country database
+ARIN publishes no `inetnum` dump without a bulk WHOIS agreement, so geofeeds referenced only from ARIN objects are unknown, apart from the cloud feeds above.
 
-Each record holds `country.iso_code`, `registered_country.iso_code` (both the same value) and `registry`.
+## Country and city databases
 
-The country is the one the RIR registered for the holder of the block, not a measured location. It is right for most access networks and often wrong for cloud and CDN ranges registered in one country and used worldwide. Blocks with a status other than `allocated` or `assigned`, and the `ZZ` code, are skipped. IPv4 ranges whose size is not a power of two are split into the minimal set of CIDR blocks. Delegations are inserted from the least to the most specific, so a sub-allocation overrides its parent.
+Each record holds `country.iso_code`, `registered_country.iso_code` and `registry`. The city database adds `subdivisions[0].iso_code`, `city.names.en` and `postal.code` when a geofeed provides them.
+
+The base layer is the RIR delegated statistics: `country` and `registered_country` are the country the RIR registered for the holder of the block. Blocks with a status other than `allocated` or `assigned`, and the `ZZ` code, are skipped. IPv4 ranges whose size is not a power of two are split into the minimal set of CIDR blocks.
+
+Accepted geofeed entries then override `country` with the location the operator declares; `registered_country` and `registry` keep the values of the covering delegation. Everything is inserted from the least to the most specific prefix, so a more specific entry overrides its parent.
+
+### Geofeed authorization
+
+A geofeed can claim any prefix, so an entry is only kept when its publisher is entitled to it:
+
+- for a geofeed referenced by an `inetnum` or `inet6num` (a `geofeed:` attribute or a `remarks: Geofeed <url>` line, HTTPS only), the most specific referencing object covering the entry must reference that same geofeed, as required by RFC 9632. An entry outside every object referencing its feed is dropped, and so is one inside a more specific object that references another feed;
+- for a cloud operator feed, the origin AS of the most specific route covering the entry (from the ASN database) must belong to that operator, from a fixed list per feed in `crates/cli/src/sources.rs`. Prefixes a customer announces itself (bring-your-own-IP) are therefore dropped;
+- entries without a country code ("do not geolocate") and lines that do not parse are skipped. A region is kept only when it is an ISO 3166-2 code of the entry's country.
+
+Signed geofeeds (RFC 9632 section 5) are not verified: very few are signed.
 
 ## ASN database
 
@@ -66,14 +84,16 @@ The few globally reachable entries of those registries (AS112, AMT, the well-kno
 
 | Crate | Role |
 |---|---|
-| `model` | shared types: registries, delegations, AS names, VRPs, routes |
+| `model` | shared types (registries, delegations, AS names, VRPs, routes, locations), longest-prefix map and special-purpose ranges |
 | `fetch` | cached HTTP downloads with their metadata (`<file>.meta.json`) |
 | `src-delegated` | parser for the RIR delegated-extended files |
 | `src-asnames` | parser for `asn.txt` |
 | `src-rpki` | parser for VRP JSON (rpki-client and Routinator formats) and RFC 6811 validator |
 | `src-bgp` | MRT RIB reader, aggregating origins per prefix |
+| `src-rpsl` | extracts geofeed references from RPSL `inetnum` and `inet6num` objects |
+| `src-geofeed` | RFC 8805 parser and polite parallel crawler |
 | `mmdb-writer` | MaxMind DB writer |
-| `merge` | builds the country and ASN databases from the parsed sources |
+| `merge` | origin selection, geofeed authorization, and the country, city and ASN databases |
 | `cli` | the `geoip-builder` binary |
 
 ## Comparison with GeoLite2
@@ -82,11 +102,13 @@ On 2026-10-01, against GeoLite2 Country of 2026-09-29 and GeoLite2 ASN of 2026-1
 
 | Database | Family | Agree | Disagree | Only in GeoLite2 | Only in ours |
 |---|---|---|---|---|---|
-| Country | IPv4 | 95.08 % | 4.92 % | 0.00 % | 0.04 % |
-| Country | IPv6 | 98.78 % | 1.21 % | 0.02 % | 0.02 % |
+| Country | IPv4 | 96.57 % | 3.43 % | 0.00 % | 0.04 % |
+| Country | IPv6 | 98.87 % | 1.11 % | 0.02 % | 0.07 % |
+| Country, without geofeeds | IPv4 | 95.08 % | 4.92 % | 0.00 % | 0.04 % |
+| Country, without geofeeds | IPv6 | 98.78 % | 1.21 % | 0.02 % | 0.02 % |
 | ASN | IPv4 | 99.71 % | 0.26 % | 0.03 % | 0.32 % |
 | ASN | IPv6 | 97.24 % | 2.51 % | 0.25 % | 2.93 % |
 | ASN, `--rpki-valid-only` | IPv4 | 64.84 % | 0.22 % | 34.94 % | 0.26 % |
 | ASN, `--rpki-valid-only` | IPv6 | 72.61 % | 2.46 % | 24.93 % | 0.39 % |
 
-Country disagreements are almost all ranges registered in the United States and located elsewhere by MaxMind (cloud providers). About 27 % of announced prefixes have no covering ROA, among them those of large networks such as AS749, AS7018, AS3356 and AS174: they make up the gap of `--rpki-valid-only`.
+Most remaining country disagreements are cloud ranges registered in one country and used in another, by operators that publish no geofeed (Microsoft Azure) or leave ranges out of theirs. About 27 % of announced prefixes have no covering ROA, among them those of large networks such as AS749, AS7018, AS3356 and AS174: they make up the gap of `--rpki-valid-only`.

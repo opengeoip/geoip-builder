@@ -1,4 +1,7 @@
+pub mod prefix_map;
 pub mod special;
+
+pub use prefix_map::PrefixMap;
 
 use std::fmt;
 use std::str::FromStr;
@@ -99,4 +102,19 @@ pub struct Origin {
 pub struct Route {
     pub prefix: IpNet,
     pub origins: Vec<Origin>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GeofeedRef {
+    pub network: IpNet,
+    pub url: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Location {
+    pub network: IpNet,
+    pub country: Option<String>,
+    pub region: Option<String>,
+    pub city: Option<String>,
+    pub postal: Option<String>,
 }

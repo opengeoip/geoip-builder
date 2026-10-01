@@ -45,22 +45,56 @@ pub enum Outcome {
     NotModified,
 }
 
+pub fn is_rate_limited(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<ureq::Error>(),
+        Some(ureq::Error::StatusCode(429))
+    )
+}
+
+#[derive(Clone, Debug)]
+pub struct Options {
+    pub connect_timeout: Duration,
+    pub global_timeout: Option<Duration>,
+    pub max_size: u64,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            connect_timeout: Duration::from_secs(30),
+            global_timeout: None,
+            max_size: u64::MAX,
+        }
+    }
+}
+
 pub struct Fetcher {
     agent: Agent,
     dir: PathBuf,
+    max_size: u64,
 }
 
 impl Fetcher {
     pub fn new(dir: impl Into<PathBuf>) -> Result<Self> {
+        Self::with_options(dir, Options::default())
+    }
+
+    pub fn with_options(dir: impl Into<PathBuf>, options: Options) -> Result<Self> {
         let dir = dir.into();
         fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
         let agent = Agent::config_builder()
             .user_agent(concat!("geoip-builder/", env!("CARGO_PKG_VERSION")))
-            .timeout_connect(Some(Duration::from_secs(30)))
+            .timeout_connect(Some(options.connect_timeout))
             .timeout_recv_body(Some(Duration::from_secs(120)))
+            .timeout_global(options.global_timeout)
             .build()
             .new_agent();
-        Ok(Self { agent, dir })
+        Ok(Self {
+            agent,
+            dir,
+            max_size: options.max_size,
+        })
     }
 
     pub fn dir(&self) -> &Path {
@@ -106,11 +140,17 @@ impl Fetcher {
         let mut reader = response
             .into_body()
             .into_with_config()
-            .limit(u64::MAX)
+            .limit(self.max_size)
             .reader();
         let mut writer = BufWriter::new(File::create(&partial)?);
-        let size = io::copy(&mut reader, &mut writer)
-            .with_context(|| format!("downloading {}", source.url))?;
+        let size = match io::copy(&mut reader, &mut writer) {
+            Ok(size) => size,
+            Err(error) => {
+                drop(writer);
+                let _ = fs::remove_file(&partial);
+                return Err(error).with_context(|| format!("downloading {}", source.url));
+            }
+        };
         writer
             .into_inner()
             .map_err(io::IntoInnerError::into_error)?
