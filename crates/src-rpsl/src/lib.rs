@@ -3,61 +3,82 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use anyhow::Result;
 use ipnet::IpNet;
-use model::GeofeedRef;
+use model::{Assignment, GeofeedRef, Registry, country_code};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Stats {
     pub objects: usize,
+    pub countries: usize,
     pub references: usize,
     pub rejected: usize,
+}
+
+#[derive(Debug, Default)]
+pub struct Parsed {
+    pub references: Vec<GeofeedRef>,
+    pub assignments: Vec<Assignment>,
+    pub stats: Stats,
 }
 
 #[derive(Default)]
 struct Object {
     networks: Option<String>,
+    country: Option<String>,
     geofeed: Option<String>,
     remark: Option<String>,
 }
 
 impl Object {
-    fn finish(&mut self, out: &mut Vec<GeofeedRef>, stats: &mut Stats) {
+    fn finish(&mut self, registry: Registry, out: &mut Parsed) {
         let object = std::mem::take(self);
         let Some(networks) = object.networks else {
             return;
         };
-        stats.objects += 1;
+        out.stats.objects += 1;
+        let Some(networks) = parse_networks(&networks) else {
+            return;
+        };
+        if let Some(country) = object.country.as_deref().and_then(country_code) {
+            out.stats.countries += 1;
+            out.assignments
+                .extend(networks.iter().map(|&network| Assignment {
+                    network,
+                    country,
+                    registry,
+                }));
+        }
         let Some(url) = object.geofeed.or(object.remark) else {
             return;
         };
-        match (parse_networks(&networks), is_https(&url)) {
-            (Some(networks), true) => {
-                stats.references += 1;
-                out.extend(networks.into_iter().map(|network| GeofeedRef {
+        if is_https(&url) {
+            out.stats.references += 1;
+            out.references
+                .extend(networks.into_iter().map(|network| GeofeedRef {
                     network,
                     url: url.clone(),
                 }));
-            }
-            _ => stats.rejected += 1,
+        } else {
+            out.stats.rejected += 1;
         }
     }
 }
 
-pub fn parse<R: BufRead>(mut reader: R) -> Result<(Vec<GeofeedRef>, Stats)> {
-    let mut references = Vec::new();
-    let mut stats = Stats::default();
+pub fn parse<R: BufRead>(mut reader: R, registry: Registry) -> Result<Parsed> {
+    let mut parsed = Parsed::default();
     let mut object = Object::default();
     let mut buffer = Vec::new();
     while reader.read_until(b'\n', &mut buffer)? > 0 {
         let line = String::from_utf8_lossy(&buffer);
         let line = line.trim_end();
         if line.is_empty() {
-            object.finish(&mut references, &mut stats);
+            object.finish(registry, &mut parsed);
         } else if !line.starts_with([' ', '\t', '+', '#', '%'])
             && let Some((key, value)) = line.split_once(':')
         {
             let value = value.trim();
             match key.to_ascii_lowercase().as_str() {
                 "inetnum" | "inet6num" => object.networks = Some(value.to_string()),
+                "country" if object.country.is_none() => object.country = Some(value.to_string()),
                 "geofeed" if object.geofeed.is_none() => object.geofeed = Some(value.to_string()),
                 "remarks" if object.remark.is_none() => {
                     object.remark = remark_url(value).map(str::to_string);
@@ -67,8 +88,8 @@ pub fn parse<R: BufRead>(mut reader: R) -> Result<(Vec<GeofeedRef>, Stats)> {
         }
         buffer.clear();
     }
-    object.finish(&mut references, &mut stats);
-    Ok((references, stats))
+    object.finish(registry, &mut parsed);
+    Ok(parsed)
 }
 
 fn remark_url(value: &str) -> Option<&str> {
@@ -110,7 +131,8 @@ mod tests {
     const SAMPLE: &str = "\
 inetnum:        195.167.179.160 - 195.167.179.167
 netname:        EXAMPLE
-country:        GB
+country:        gb
+country:        FR
 geofeed:        https://static.example.uk/geofeed.csv
 source:         RIPE
 
@@ -123,6 +145,7 @@ inet6num:       2001:db8::/32
 remarks:        geofeed http://insecure.example/feed.csv
 
 inetnum:        10.0.0.0 - 10.0.0.255
+country:        EU
 remarks:        hello
 
 aut-num:        AS64500
@@ -135,9 +158,17 @@ geofeed:        https://ignored.example/feed.csv
 
     #[test]
     fn extracts_geofeed_references() {
-        let (references, stats) = parse(SAMPLE.as_bytes()).unwrap();
+        let parsed = parse(SAMPLE.as_bytes(), Registry::RipeNcc).unwrap();
         assert_eq!(
-            references,
+            parsed.assignments,
+            [Assignment {
+                network: net("195.167.179.160/29"),
+                country: *b"GB",
+                registry: Registry::RipeNcc,
+            }]
+        );
+        assert_eq!(
+            parsed.references,
             [
                 GeofeedRef {
                     network: net("195.167.179.160/29"),
@@ -150,9 +181,10 @@ geofeed:        https://ignored.example/feed.csv
             ]
         );
         assert_eq!(
-            stats,
+            parsed.stats,
             Stats {
                 objects: 4,
+                countries: 1,
                 references: 2,
                 rejected: 1
             }

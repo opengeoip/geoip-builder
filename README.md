@@ -20,7 +20,7 @@ target/release/geoip-builder compare --kind country out/country.mmdb GeoLite2-Co
 - `lookup` prints the network and record matching each address.
 - `compare` measures how far a database is from a reference one, weighted by IPv4 addresses and IPv6 /48 networks, with the top disagreements and the largest ranges behind each of them. `--only <key>` (a country code, or `AS<n>`) restricts it to the ranges where either database has that value.
 
-A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 for the geofeeds. `build` takes about 40 seconds and peaks at about 900 MB of memory.
+A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 for the geofeeds. `build` takes about 50 seconds and peaks at about 1.5 GB of memory.
 
 ## Sources
 
@@ -30,7 +30,7 @@ A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 fo
 | [RIPE NCC AS names](https://ftp.ripe.net/ripe/asnames/asn.txt), compiled from the five RIRs | `asn.txt` | AS organization names |
 | [rpki-client VRP export](https://console.rpki-client.org/) | `vrps.json` | route origin validation |
 | [RIPE RIS](https://ris.ripe.net/) RIB dumps (MRT) | `ris-<collector>.bview.gz` | origin AS of every announced prefix |
-| RPSL dumps of RIPE NCC (`inetnum`, `inet6num`), APNIC (`inetnum`, `inet6num`), AFRINIC and LACNIC | `rpsl-*.gz` | geofeed references ([RFC 9632](https://www.rfc-editor.org/rfc/rfc9632)) |
+| RPSL dumps of RIPE NCC (`inetnum`, `inet6num`), APNIC (`inetnum`, `inet6num`), AFRINIC and LACNIC | `rpsl-*.gz` | country of sub-allocations and assignments, geofeed references ([RFC 9632](https://www.rfc-editor.org/rfc/rfc9632)) |
 | [RFC 8805](https://www.rfc-editor.org/rfc/rfc8805) geofeeds referenced by those objects | `geofeeds/<hash>.csv` | country, region, city and postal code declared by the operator |
 | Geofeeds published by cloud operators: AWS, Google Cloud, Google corporate, Cloudflare, Linode, DigitalOcean | `geofeeds/<hash>.csv` | same, for space registered at ARIN |
 
@@ -42,7 +42,9 @@ Each record holds `country.iso_code`, `registered_country.iso_code` and `registr
 
 The base layer is the RIR delegated statistics: `country` and `registered_country` are the country the RIR registered for the holder of the block. Blocks with a status other than `allocated` or `assigned`, and the `ZZ` code, are skipped. IPv4 ranges whose size is not a power of two are split into the minimal set of CIDR blocks.
 
-Accepted geofeed entries then override `country` with the location the operator declares; `registered_country` and `registry` keep the values of the covering delegation. Everything is inserted from the least to the most specific prefix, so a more specific entry overrides its parent.
+The `country:` of RPSL `inetnum` and `inet6num` objects then refines it, for blocks a LIR sub-allocates or assigns to a customer in another country (an operator's foreign subsidiary, an overseas territory, a leased block). An object is used only when it is strictly more specific than a delegation of the same RIR: objects for the allocation itself carry a country typed by the LIR, while the delegated statistics carry the one checked by the RIR, and placeholder objects for space a RIR does not manage are left out. `EU` and `ZZ` are ignored and lower-case codes are accepted.
+
+Accepted geofeed entries come last and override `country` with the location the operator declares. In every layer, `registered_country` and `registry` keep the values of the covering delegation, and entries are inserted from the least to the most specific prefix, so within a layer a more specific entry overrides its parent and each layer overrides the previous one.
 
 ### Geofeed authorization
 
@@ -102,13 +104,15 @@ On 2026-10-01, against GeoLite2 Country of 2026-09-29 and GeoLite2 ASN of 2026-1
 
 | Database | Family | Agree | Disagree | Only in GeoLite2 | Only in ours |
 |---|---|---|---|---|---|
-| Country | IPv4 | 96.57 % | 3.43 % | 0.00 % | 0.04 % |
-| Country | IPv6 | 98.87 % | 1.11 % | 0.02 % | 0.07 % |
-| Country, without geofeeds | IPv4 | 95.08 % | 4.92 % | 0.00 % | 0.04 % |
-| Country, without geofeeds | IPv6 | 98.78 % | 1.21 % | 0.02 % | 0.02 % |
+| Country | IPv4 | 96.89 % | 3.11 % | 0.00 % | 0.04 % |
+| Country | IPv6 | 98.21 % | 1.78 % | 0.02 % | 0.07 % |
+| Country, without `inetnum` countries | IPv4 | 96.57 % | 3.43 % | 0.00 % | 0.04 % |
+| Country, without `inetnum` countries | IPv6 | 98.87 % | 1.11 % | 0.02 % | 0.07 % |
+| Country, RIR statistics only | IPv4 | 95.08 % | 4.92 % | 0.00 % | 0.04 % |
+| Country, RIR statistics only | IPv6 | 98.78 % | 1.21 % | 0.02 % | 0.02 % |
 | ASN | IPv4 | 99.71 % | 0.26 % | 0.03 % | 0.32 % |
 | ASN | IPv6 | 97.24 % | 2.51 % | 0.25 % | 2.93 % |
 | ASN, `--rpki-valid-only` | IPv4 | 64.84 % | 0.22 % | 34.94 % | 0.26 % |
 | ASN, `--rpki-valid-only` | IPv6 | 72.61 % | 2.46 % | 24.93 % | 0.39 % |
 
-Most remaining country disagreements are cloud ranges registered in one country and used in another, by operators that publish no geofeed (Microsoft Azure) or leave ranges out of theirs. About 27 % of announced prefixes have no covering ROA, among them those of large networks such as AS749, AS7018, AS3356 and AS174: they make up the gap of `--rpki-valid-only`.
+`inetnum` countries fix the foreign subsidiaries of operators (Orange in Spain, Iliad in Italy, OVH in the United Kingdom). In IPv6 they lower the agreement, because many /29 allocations are entirely assigned to a customer registered elsewhere, where GeoLite2 keeps the country of the holder. Most remaining country disagreements are cloud ranges registered in one country and used in another, by operators that publish no geofeed (Microsoft Azure) or leave ranges out of theirs. About 27 % of announced prefixes have no covering ROA, among them those of large networks such as AS749, AS7018, AS3356 and AS174: they make up the gap of `--rpki-valid-only`.

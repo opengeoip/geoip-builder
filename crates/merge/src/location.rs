@@ -1,11 +1,13 @@
 use mmdb_writer::{Value, Writer};
-use model::{Delegation, Location, PrefixMap, Registry};
+use model::{Assignment, Delegation, Location, PrefixMap, Registry};
 
 use crate::{clear_special_ranges, writer};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct LocationStats {
     pub delegations: usize,
+    pub assignments: usize,
+    pub ignored_assignments: usize,
     pub geofeed_entries: usize,
 }
 
@@ -24,10 +26,12 @@ fn base(country: &str, registered: Option<(&str, Registry)>) -> Vec<(&'static st
 
 pub fn location_dbs(
     mut delegations: Vec<Delegation>,
+    mut assignments: Vec<Assignment>,
     mut locations: Vec<Location>,
     build_epoch: u64,
 ) -> (Writer, Writer, LocationStats) {
     delegations.sort_by_key(|d| (d.network.prefix_len(), d.network));
+    assignments.sort_by_key(|a| (a.network.prefix_len(), a.network));
     locations.sort_by_key(|l| l.network.prefix_len());
     let mut country_db = writer(
         "GeoLite2-Country",
@@ -52,6 +56,23 @@ pub fn location_dbs(
         ));
         country_db.insert(delegation.network, &value);
         city_db.insert(delegation.network, &value);
+    }
+
+    let mut applied = 0;
+    for assignment in &assignments {
+        let Some((_, owner)) =
+            registered
+                .longest_match(assignment.network)
+                .filter(|(network, (_, registry))| {
+                    *registry == assignment.registry && *network != assignment.network
+                })
+        else {
+            continue;
+        };
+        applied += 1;
+        let value = Value::map(base(assignment.country(), Some(*owner)));
+        country_db.insert(assignment.network, &value);
+        city_db.insert(assignment.network, &value);
     }
 
     for location in &locations {
@@ -82,6 +103,8 @@ pub fn location_dbs(
     clear_special_ranges(&mut city_db);
     let stats = LocationStats {
         delegations: delegations.len(),
+        assignments: applied,
+        ignored_assignments: assignments.len() - applied,
         geofeed_entries: locations.len(),
     };
     (country_db, city_db, stats)
@@ -108,7 +131,7 @@ mod tests {
             delegation("2a00:1450:1::/48", "FR", Registry::RipeNcc),
             delegation("2a00:1450::/32", "DE", Registry::RipeNcc),
         ];
-        let (db, _, _) = location_dbs(delegations, Vec::new(), 0);
+        let (db, _, _) = location_dbs(delegations, Vec::new(), Vec::new(), 0);
         let reader = read(db);
         let country = |ip| get::<String>(&reader, ip, &path!["country", "iso_code"]);
         assert_eq!(country("2a00:1450:1::1").as_deref(), Some("FR"));
@@ -121,7 +144,7 @@ mod tests {
             delegation("192.0.0.0/8", "US", Registry::Arin),
             delegation("2001:db8::/32", "DE", Registry::RipeNcc),
         ];
-        let (db, _, _) = location_dbs(delegations, Vec::new(), 0);
+        let (db, _, _) = location_dbs(delegations, Vec::new(), Vec::new(), 0);
         let reader = read(db);
         let country = |ip| get::<String>(&reader, ip, &path!["country", "iso_code"]);
         assert_eq!(country("192.1.2.3").as_deref(), Some("US"));
@@ -130,6 +153,45 @@ mod tests {
         assert_eq!(country("2001:db8::1"), None);
         assert_eq!(country("2002:c001:203::1").as_deref(), Some("US"));
         assert_eq!(country("2002:c0a8:101::1"), None);
+    }
+
+    fn assignment(network: &str, country: &[u8; 2], registry: Registry) -> Assignment {
+        Assignment {
+            network: network.parse().unwrap(),
+            country: *country,
+            registry,
+        }
+    }
+
+    #[test]
+    fn inetnum_countries_refine_delegations_of_their_registry() {
+        let delegations = vec![delegation("90.0.0.0/9", "FR", Registry::RipeNcc)];
+        let assignments = vec![
+            assignment("90.68.0.0/16", b"ES", Registry::RipeNcc),
+            assignment("90.68.1.0/24", b"FR", Registry::RipeNcc),
+            assignment("0.0.0.0/0", b"AU", Registry::Apnic),
+            assignment("90.70.0.0/16", b"DE", Registry::Apnic),
+            assignment("90.0.0.0/9", b"GB", Registry::RipeNcc),
+        ];
+        let locations = vec![Location {
+            network: "90.68.2.0/23".parse().unwrap(),
+            country: Some("PT".into()),
+            region: None,
+            city: None,
+            postal: None,
+        }];
+        let (db, _, stats) = location_dbs(delegations, assignments, locations, 0);
+        assert_eq!((stats.assignments, stats.ignored_assignments), (2, 3));
+        let reader = read(db);
+        let country = |ip| get::<String>(&reader, ip, &path!["country", "iso_code"]);
+        let registered = |ip| get::<String>(&reader, ip, &path!["registered_country", "iso_code"]);
+        assert_eq!(country("90.68.0.1").as_deref(), Some("ES"));
+        assert_eq!(registered("90.68.0.1").as_deref(), Some("FR"));
+        assert_eq!(country("90.68.1.1").as_deref(), Some("FR"));
+        assert_eq!(country("90.68.2.1").as_deref(), Some("PT"));
+        assert_eq!(country("90.70.0.1").as_deref(), Some("FR"));
+        assert_eq!(country("90.100.0.1").as_deref(), Some("FR"));
+        assert_eq!(country("91.0.0.1"), None);
     }
 
     #[test]
@@ -142,12 +204,13 @@ mod tests {
             city: Some("Frankfurt am Main".into()),
             postal: None,
         }];
-        let (country_db, city_db, stats) = location_dbs(delegations, locations, 0);
+        let (country_db, city_db, stats) = location_dbs(delegations, Vec::new(), locations, 0);
         assert_eq!(
             stats,
             LocationStats {
                 delegations: 1,
-                geofeed_entries: 1
+                geofeed_entries: 1,
+                ..Default::default()
             }
         );
         let country_db = read(country_db);

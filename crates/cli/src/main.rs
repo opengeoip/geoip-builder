@@ -85,7 +85,7 @@ fn fetch_all(data: &DataArgs) -> Result<()> {
         }
     }
 
-    let references = build::geofeed_references(&data.data_dir)?;
+    let (references, _) = build::rpsl_records(&data.data_dir)?;
     let urls = build::geofeed_urls(&references);
     let dir = build::geofeed_dir(&data.data_dir);
     let fetcher = Fetcher::with_options(

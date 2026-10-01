@@ -104,6 +104,28 @@ pub struct Route {
     pub origins: Vec<Origin>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Assignment {
+    pub network: IpNet,
+    pub country: [u8; 2],
+    pub registry: Registry,
+}
+
+impl Assignment {
+    pub fn country(&self) -> &str {
+        std::str::from_utf8(&self.country).unwrap_or("ZZ")
+    }
+}
+
+pub fn country_code(value: &str) -> Option<[u8; 2]> {
+    let bytes = value.trim().as_bytes();
+    if bytes.len() != 2 || !bytes.iter().all(u8::is_ascii_alphabetic) {
+        return None;
+    }
+    let code = [bytes[0].to_ascii_uppercase(), bytes[1].to_ascii_uppercase()];
+    (code != *b"ZZ" && code != *b"EU").then_some(code)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GeofeedRef {
     pub network: IpNet,

@@ -33,35 +33,41 @@ pub fn ris(collector: &str) -> Source {
     )
 }
 
-pub fn rpsl() -> Vec<Source> {
+pub fn rpsl() -> Vec<(Source, Registry)> {
     [
         (
             "rpsl-ripe-inetnum.gz",
             "https://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz",
+            Registry::RipeNcc,
         ),
         (
             "rpsl-ripe-inet6num.gz",
             "https://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz",
+            Registry::RipeNcc,
         ),
         (
             "rpsl-apnic-inetnum.gz",
             "https://ftp.apnic.net/apnic/whois/apnic.db.inetnum.gz",
+            Registry::Apnic,
         ),
         (
             "rpsl-apnic-inet6num.gz",
             "https://ftp.apnic.net/apnic/whois/apnic.db.inet6num.gz",
+            Registry::Apnic,
         ),
         (
             "rpsl-afrinic.gz",
             "https://ftp.afrinic.net/dbase/afrinic.db.gz",
+            Registry::Afrinic,
         ),
         (
             "rpsl-lacnic.gz",
             "https://ftp.lacnic.net/lacnic/dbase/lacnic.db.gz",
+            Registry::Lacnic,
         ),
     ]
     .into_iter()
-    .map(|(name, url)| Source::new(name, url))
+    .map(|(name, url, registry)| (Source::new(name, url), registry))
     .collect()
 }
 
@@ -101,6 +107,6 @@ pub fn all(collectors: &[String], vrps_url: &str) -> Vec<Source> {
     sources.push(asnames());
     sources.push(vrps(vrps_url));
     sources.extend(collectors.iter().map(|c| ris(c)));
-    sources.extend(rpsl());
+    sources.extend(rpsl().into_iter().map(|(source, _)| source));
     sources
 }

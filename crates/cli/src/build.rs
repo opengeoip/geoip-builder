@@ -7,7 +7,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use flate2::read::MultiGzDecoder;
 use mmdb_writer::Writer;
-use model::{Asn, GeofeedRef, Location, PrefixMap, Registry};
+use model::{Asn, Assignment, GeofeedRef, Location, PrefixMap, Registry};
 use src_bgp::RibCollector;
 use src_rpki::Validator;
 
@@ -44,18 +44,21 @@ pub fn geofeed_dir(data_dir: &Path) -> PathBuf {
     data_dir.join("geofeeds")
 }
 
-pub fn geofeed_references(data_dir: &Path) -> Result<Vec<GeofeedRef>> {
+pub fn rpsl_records(data_dir: &Path) -> Result<(Vec<GeofeedRef>, Vec<Assignment>)> {
     let mut references = Vec::new();
-    for source in sources::rpsl() {
-        let (parsed, stats) = src_rpsl::parse(open(data_dir, &source)?)
+    let mut assignments = Vec::new();
+    for (source, registry) in sources::rpsl() {
+        let parsed = src_rpsl::parse(open(data_dir, &source)?, registry)
             .with_context(|| format!("parsing {}", source.name))?;
+        let stats = &parsed.stats;
         eprintln!(
-            "{}: {} objects, {} geofeed references, {} rejected",
-            source.name, stats.objects, stats.references, stats.rejected
+            "{}: {} objects, {} with a country, {} geofeed references, {} rejected",
+            source.name, stats.objects, stats.countries, stats.references, stats.rejected
         );
-        references.extend(parsed);
+        references.extend(parsed.references);
+        assignments.extend(parsed.assignments);
     }
-    Ok(references)
+    Ok((references, assignments))
 }
 
 pub fn geofeed_urls(references: &[GeofeedRef]) -> Vec<String> {
@@ -124,7 +127,7 @@ pub fn run(
         delegations.extend(parsed);
     }
 
-    let references = geofeed_references(data_dir)?;
+    let (references, assignments) = rpsl_records(data_dir)?;
     let dir = geofeed_dir(data_dir);
     let mut feeds: HashMap<String, Vec<Location>> = HashMap::new();
     let mut missing = 0;
@@ -160,10 +163,12 @@ pub fn run(
     );
     drop(feeds);
 
-    let (country, city, stats) = merge::location_dbs(delegations, locations, epoch);
+    let (country, city, stats) = merge::location_dbs(delegations, assignments, locations, epoch);
     eprintln!(
-        "location: {} delegations, {} geofeed entries, in {:.1?}",
+        "location: {} delegations, {} inetnum countries applied, {} ignored (not inside a delegation of their registry), {} geofeed entries, in {:.1?}",
         stats.delegations,
+        stats.assignments,
+        stats.ignored_assignments,
         stats.geofeed_entries,
         started.elapsed()
     );
