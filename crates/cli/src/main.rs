@@ -24,6 +24,18 @@ struct DataArgs {
     collectors: Vec<String>,
     #[arg(long, default_value = sources::DEFAULT_VRPS_URL)]
     vrps_url: String,
+    #[arg(long)]
+    rpki_valid_only: bool,
+}
+
+impl DataArgs {
+    fn policy(&self) -> merge::RpkiPolicy {
+        if self.rpki_valid_only {
+            merge::RpkiPolicy::ValidOnly
+        } else {
+            merge::RpkiPolicy::RejectInvalid
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -86,12 +98,22 @@ fn lookup(database: PathBuf, addresses: Vec<IpAddr>) -> Result<()> {
 fn main() -> Result<()> {
     match Cli::parse().command {
         Command::Fetch { data } => fetch_all(&data),
-        Command::Build { data, out_dir } => {
-            build::run(&data.data_dir, &out_dir, &data.collectors, &data.vrps_url)
-        }
+        Command::Build { data, out_dir } => build::run(
+            &data.data_dir,
+            &out_dir,
+            &data.collectors,
+            &data.vrps_url,
+            data.policy(),
+        ),
         Command::Run { data, out_dir } => {
             fetch_all(&data)?;
-            build::run(&data.data_dir, &out_dir, &data.collectors, &data.vrps_url)
+            build::run(
+                &data.data_dir,
+                &out_dir,
+                &data.collectors,
+                &data.vrps_url,
+                data.policy(),
+            )
         }
         Command::Lookup {
             database,

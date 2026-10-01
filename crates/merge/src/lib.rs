@@ -52,10 +52,18 @@ pub struct AsnStats {
     pub unnamed: usize,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RpkiPolicy {
+    #[default]
+    RejectInvalid,
+    ValidOnly,
+}
+
 pub fn asn_db(
     routes: &[Route],
     validator: &Validator,
     names: &HashMap<Asn, AsName>,
+    policy: RpkiPolicy,
     build_epoch: u64,
 ) -> (Writer, AsnStats) {
     let mut stats = AsnStats {
@@ -78,21 +86,41 @@ pub fn asn_db(
         match (valid, worst) {
             (Some(origin), _) => {
                 stats.valid += 1;
-                selected.push((route.prefix, origin.asn));
+                selected.push((route.prefix, origin.asn, Validity::Valid));
             }
             (None, Validity::Invalid) => stats.invalid += 1,
-            (None, _) => stats.not_found += 1,
+            (None, _) => {
+                stats.not_found += 1;
+                if policy == RpkiPolicy::RejectInvalid
+                    && let Some(origin) = route.origins.first()
+                {
+                    selected.push((route.prefix, origin.asn, Validity::NotFound));
+                }
+            }
         }
     }
-    selected.sort_by_key(|(prefix, _)| (prefix.prefix_len(), *prefix));
+    selected.sort_by_key(|(prefix, _, _)| (prefix.prefix_len(), *prefix));
 
     let mut db = writer(
         "GeoLite2-ASN",
-        "Origin AS of announced prefixes, RPKI-valid routes only",
+        match policy {
+            RpkiPolicy::RejectInvalid => {
+                "Origin AS of announced prefixes, RPKI-invalid routes excluded"
+            }
+            RpkiPolicy::ValidOnly => "Origin AS of announced prefixes, RPKI-valid routes only",
+        },
         build_epoch,
     );
-    for (prefix, asn) in selected {
-        let mut entries = vec![("autonomous_system_number", Value::U32(asn))];
+    for (prefix, asn, validity) in selected {
+        let rpki = match validity {
+            Validity::Valid => "valid",
+            Validity::Invalid => "invalid",
+            Validity::NotFound => "not-found",
+        };
+        let mut entries = vec![
+            ("autonomous_system_number", Value::U32(asn)),
+            ("rpki", Value::string(rpki)),
+        ];
         match names.get(&asn) {
             Some(name) => entries.push((
                 "autonomous_system_organization",
@@ -129,8 +157,7 @@ mod tests {
             .unwrap()
     }
 
-    #[test]
-    fn keeps_only_rpki_valid_origins() {
+    fn fixture(policy: RpkiPolicy) -> (Reader<Vec<u8>>, AsnStats) {
         let routes = vec![
             Route {
                 prefix: "10.0.0.0/16".parse().unwrap(),
@@ -180,19 +207,33 @@ mod tests {
                 country: None,
             },
         )]);
-        let (db, stats) = asn_db(&routes, &validator, &names, 0);
-        assert_eq!(
-            stats,
-            AsnStats {
-                routes: 4,
-                valid: 2,
-                invalid: 1,
-                not_found: 1,
-                unnamed: 0
-            }
-        );
+        let (db, stats) = asn_db(&routes, &validator, &names, policy, 0);
         let reader = read(db);
         reader.verify().unwrap();
+        (reader, stats)
+    }
+
+    fn rpki_of(reader: &Reader<Vec<u8>>, ip: &str) -> Option<String> {
+        let ip: IpAddr = ip.parse().unwrap();
+        reader
+            .lookup(ip)
+            .unwrap()
+            .decode_path(&maxminddb::path!["rpki"])
+            .unwrap()
+    }
+
+    const STATS: AsnStats = AsnStats {
+        routes: 4,
+        valid: 2,
+        invalid: 1,
+        not_found: 1,
+        unnamed: 0,
+    };
+
+    #[test]
+    fn valid_only_keeps_rpki_valid_origins() {
+        let (reader, stats) = fixture(RpkiPolicy::ValidOnly);
+        assert_eq!(stats, STATS);
         assert_eq!(asn_of(&reader, "10.0.1.1"), Some(64500));
         assert_eq!(asn_of(&reader, "10.0.2.1"), Some(64500));
         assert_eq!(asn_of(&reader, "192.0.2.1"), None);
@@ -203,6 +244,23 @@ mod tests {
             .decode_path(&maxminddb::path!["autonomous_system_organization"])
             .unwrap();
         assert_eq!(org.as_deref(), Some("Example Ltd"));
+    }
+
+    #[test]
+    fn reject_invalid_also_keeps_routes_without_roa() {
+        let (reader, stats) = fixture(RpkiPolicy::RejectInvalid);
+        assert_eq!(
+            stats,
+            AsnStats {
+                unnamed: 1,
+                ..STATS
+            }
+        );
+        assert_eq!(asn_of(&reader, "10.0.1.1"), Some(64500));
+        assert_eq!(asn_of(&reader, "10.0.2.1"), Some(64500));
+        assert_eq!(rpki_of(&reader, "10.0.2.1").as_deref(), Some("valid"));
+        assert_eq!(asn_of(&reader, "192.0.2.1"), Some(64501));
+        assert_eq!(rpki_of(&reader, "192.0.2.1").as_deref(), Some("not-found"));
     }
 
     #[test]

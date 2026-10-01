@@ -30,7 +30,13 @@ fn write(writer: Writer, path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn run(data_dir: &Path, out_dir: &Path, collectors: &[String], vrps_url: &str) -> Result<()> {
+pub fn run(
+    data_dir: &Path,
+    out_dir: &Path,
+    collectors: &[String],
+    vrps_url: &str,
+    policy: merge::RpkiPolicy,
+) -> Result<()> {
     fs::create_dir_all(out_dir)?;
     let epoch = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
 
@@ -64,9 +70,9 @@ pub fn run(data_dir: &Path, out_dir: &Path, collectors: &[String], vrps_url: &st
         eprintln!("{}: parsed after {:.1?}", source.name, started.elapsed());
     }
     let routes = rib.into_routes();
-    let (asn, stats) = merge::asn_db(&routes, &validator, &names, epoch);
+    let (asn, stats) = merge::asn_db(&routes, &validator, &names, policy, epoch);
     eprintln!(
-        "asn: {} routes, {} valid, {} invalid, {} not found, {} valid without a name, in {:.1?}",
+        "asn: {} routes, {} valid, {} invalid, {} not found, {} kept without a name, in {:.1?}",
         stats.routes,
         stats.valid,
         stats.invalid,

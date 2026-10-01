@@ -88,7 +88,11 @@ pub fn is_routable(prefix: IpNet) -> bool {
     match prefix {
         IpNet::V4(net) => IPV4_LENGTHS.contains(&net.prefix_len()),
         IpNet::V6(net) => {
-            IPV6_LENGTHS.contains(&net.prefix_len()) && net.addr().segments()[0] & 0xe000 == 0x2000
+            let segments = net.addr().segments();
+            IPV6_LENGTHS.contains(&net.prefix_len())
+                && segments[0] & 0xe000 == 0x2000
+                && segments[0] != 0x2002
+                && (segments[0], segments[1]) != (0x2001, 0)
         }
     }
 }
@@ -105,5 +109,8 @@ mod tests {
         assert!(is_routable("2001:db8::/32".parse().unwrap()));
         assert!(!is_routable("2001:db8::/64".parse().unwrap()));
         assert!(!is_routable("fc00::/16".parse().unwrap()));
+        assert!(!is_routable("2002::/16".parse().unwrap()));
+        assert!(!is_routable("2001::/32".parse().unwrap()));
+        assert!(is_routable("2001:4860::/32".parse().unwrap()));
     }
 }

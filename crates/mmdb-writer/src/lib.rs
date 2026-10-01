@@ -5,7 +5,7 @@ use ipnet::IpNet;
 
 const METADATA_MARKER: &[u8] = b"\xAB\xCD\xEFMaxMind.com";
 const RECORD_SIZE: u16 = 32;
-const IPV4_MAPPED: u128 = 0xffff << 32;
+const IPV4_ALIASES: [(u128, u8); 2] = [(0xffff << 32, 96), (0x2002 << 112, 16)];
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
@@ -218,7 +218,9 @@ impl Writer {
 
         let ipv4_root = self.record_at(0, 96);
         if ipv4_root != Record::Empty {
-            self.set(IPV4_MAPPED, 96, ipv4_root);
+            for (bits, length) in IPV4_ALIASES {
+                self.set(bits, length, ipv4_root);
+            }
         }
 
         let mut order = Vec::new();
@@ -362,6 +364,7 @@ mod tests {
         assert_eq!(lookup(&reader, "2001:db8::1").as_deref(), Some("DE"));
         assert_eq!(lookup(&reader, "2001:db8:1::1").as_deref(), Some("AU"));
         assert_eq!(lookup(&reader, "::ffff:1.2.3.4").as_deref(), Some("FR"));
+        assert_eq!(lookup(&reader, "2002:102:304::1").as_deref(), Some("FR"));
         let ip: IpAddr = "1.2.3.4".parse().unwrap();
         assert_eq!(
             reader.lookup(ip).unwrap().network().unwrap().to_string(),
