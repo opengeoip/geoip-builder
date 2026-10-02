@@ -92,13 +92,31 @@ pub fn parse<R: BufRead>(mut reader: R, registry: Registry) -> Result<Parsed> {
     Ok(parsed)
 }
 
-fn remark_url(value: &str) -> Option<&str> {
-    let (keyword, url) = value.split_once(char::is_whitespace)?;
-    keyword.eq_ignore_ascii_case("geofeed").then(|| url.trim())
+fn starts_with_ignore_case(value: &str, prefix: &str) -> bool {
+    value
+        .get(..prefix.len())
+        .is_some_and(|start| start.eq_ignore_ascii_case(prefix))
 }
 
-fn is_https(url: &str) -> bool {
-    url.len() > 8 && url[..8].eq_ignore_ascii_case("https://") && !url.contains(char::is_whitespace)
+pub fn remark_url(value: &str) -> Option<&str> {
+    let mut rest = value.trim().trim_start_matches(['|', ' ', '\t']);
+    for prefix in ["remarks:", "comment:"] {
+        if starts_with_ignore_case(rest, prefix) {
+            rest = rest[prefix.len()..].trim_start();
+        }
+    }
+    const KEYWORD: &str = "geofeed";
+    if !starts_with_ignore_case(rest, KEYWORD) {
+        return None;
+    }
+    let rest = &rest[KEYWORD.len()..];
+    let url = rest.strip_prefix(':').unwrap_or(rest).trim();
+    let url = url.split_whitespace().next()?;
+    (rest.starts_with([':', ' ', '\t'])).then_some(url)
+}
+
+pub fn is_https(url: &str) -> bool {
+    url.len() > 8 && starts_with_ignore_case(url, "https://") && !url.contains(char::is_whitespace)
 }
 
 pub fn parse_networks(value: &str) -> Option<Vec<IpNet>> {
@@ -189,6 +207,34 @@ geofeed:        https://ignored.example/feed.csv
                 rejected: 1
             }
         );
+    }
+
+    #[test]
+    fn accepts_the_remark_spellings_seen_in_the_wild() {
+        for remark in [
+            "Geofeed https://a.example/g.csv",
+            "geofeed: https://a.example/g.csv",
+            "GeoFeed:https://a.example/g.csv",
+            "Comment: Geofeed https://a.example/g.csv",
+            "remarks: Geofeed https://a.example/g.csv",
+            "| Geofeed: https://a.example/g.csv",
+        ] {
+            assert_eq!(
+                remark_url(remark),
+                Some("https://a.example/g.csv"),
+                "{remark}"
+            );
+        }
+        for remark in [
+            "https://a.example/g.csv",
+            "geofeeds are nice",
+            "Geofeedhttps://a.example",
+            "ANR Si\u{e8}ge",
+            "G\u{e9}ofeed https://a.example/g.csv",
+            "geo",
+        ] {
+            assert_eq!(remark_url(remark), None, "{remark}");
+        }
     }
 
     #[test]

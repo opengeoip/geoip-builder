@@ -7,13 +7,7 @@ use std::time::Duration;
 use anyhow::Result;
 use fetch::{Fetcher, Outcome, Source};
 use ipnet::IpNet;
-use model::{Asn, Location};
-
-#[derive(Clone, Debug)]
-pub struct Seed {
-    pub url: &'static str,
-    pub asns: &'static [Asn],
-}
+use model::Location;
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ParseStats {

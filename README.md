@@ -35,9 +35,9 @@ A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 fo
 | RPSL dumps of RIPE NCC (`inetnum`, `inet6num`), APNIC (`inetnum`, `inet6num`), AFRINIC and LACNIC | `rpsl-*.gz` | country of sub-allocations and assignments, geofeed references ([RFC 9632](https://www.rfc-editor.org/rfc/rfc9632)) |
 | [RIPE Atlas probe archive](https://ftp.ripe.net/ripe/atlas/probes/archive/) of the previous day | `atlas-probes.json.bz2` | ground truth for `evaluate` |
 | [RFC 8805](https://www.rfc-editor.org/rfc/rfc8805) geofeeds referenced by those objects | `geofeeds/<hash>.csv` | country, region, city and postal code declared by the operator |
-| Geofeeds published by cloud operators: AWS, Google Cloud, Google corporate, Cloudflare, Linode, DigitalOcean | `geofeeds/<hash>.csv` | same, for space registered at ARIN |
+| ARIN NetRanges carrying a geofeed reference, compiled daily over RDAP by [geofeed-finder](https://github.com/massimocandela/geofeed-finder) and published at `geofeeds.packetvis.com` | `arin-geofeed-inetnums.json` | geofeed references for space registered at ARIN |
 
-ARIN publishes no `inetnum` dump without a bulk WHOIS agreement, so geofeeds referenced only from ARIN objects are unknown, apart from the cloud feeds above.
+ARIN publishes no `inetnum` dump without a [Bulk Whois](https://www.arin.net/reference/research/bulkwhois/) agreement, and its RDAP terms of use forbid compiling its database in bulk. The ARIN references therefore come from the file geofeed-finder publishes every day, which goes through the same RFC 9632 checks as the other registries. On every `fetch`, `--arin-check-sample` (default 10) NetRanges of that file, chosen anew each day, are looked up in ARIN RDAP one per second, and any difference between the file and the registry is reported. An ARIN Bulk Whois dump would replace that file.
 
 ## Country and city databases
 
@@ -53,8 +53,7 @@ Accepted geofeed entries come last and override `country` with the location the 
 
 A geofeed can claim any prefix, so an entry is only kept when its publisher is entitled to it:
 
-- for a geofeed referenced by an `inetnum` or `inet6num` (a `geofeed:` attribute or a `remarks: Geofeed <url>` line, HTTPS only), the most specific referencing object covering the entry must reference that same geofeed, as required by RFC 9632. An entry outside every object referencing its feed is dropped, and so is one inside a more specific object that references another feed;
-- for a cloud operator feed, the origin AS of the most specific route covering the entry (from the ASN database) must belong to that operator, from a fixed list per feed in `crates/cli/src/sources.rs`. Prefixes a customer announces itself (bring-your-own-IP) are therefore dropped;
+- the geofeed must be referenced by an `inetnum`, `inet6num` or ARIN NetRange (a `geofeed:` attribute or a `Geofeed <url>` remark, HTTPS only; like geofeed-finder, the common variants `Geofeed: <url>`, `geofeed:<url>` and `Comment: Geofeed <url>` are accepted, a bare URL is not), the most specific referencing object covering the entry must reference that same geofeed, as required by RFC 9632. An entry outside every object referencing its feed is dropped, and so is one inside a more specific object that references another feed;
 - entries without a country code ("do not geolocate") and lines that do not parse are skipped. A region is kept only when it is an ISO 3166-2 code of the entry's country.
 
 Signed geofeeds (RFC 9632 section 5) are not verified: very few are signed.
@@ -97,18 +96,29 @@ The few globally reachable entries of those registries (AS112, AMT, the well-kno
 | `src-bgp` | MRT RIB reader, aggregating origins per prefix |
 | `src-rpsl` | extracts geofeed references from RPSL `inetnum` and `inet6num` objects |
 | `src-geofeed` | RFC 8805 parser and polite parallel crawler |
+| `src-arin` | reader for the precompiled ARIN NetRanges and for ARIN RDAP network objects |
+| `src-atlas` | reader for the RIPE Atlas probe archive |
 | `mmdb-writer` | MaxMind DB writer |
 | `merge` | origin selection, geofeed authorization, and the country, city and ASN databases |
 | `cli` | the `geoip-builder` binary |
 
 ## Comparison with GeoLite2
 
-On 2026-10-01, against GeoLite2 Country of 2026-09-29 and GeoLite2 ASN of 2026-10-01:
+Against RIPE Atlas probes on 2026-10-02 (`evaluate`, connected probes with a public address):
+
+| Database | IPv4 correct | IPv6 correct |
+|---|---|---|
+| ours | 93.38 % | 78.72 % |
+| GeoLite2 Country | 97.72 % | 79.76 % |
+
+About 16 % of the IPv6 probe addresses have no answer in either database. Most of the IPv4 gap comes from hosting and cloud networks whose geofeeds are not referenced from any registry object (AWS, Google Cloud, DigitalOcean, Vultr, Starlink) or which publish none (Oracle Cloud, Microsoft Azure).
+
+Against GeoLite2 Country of 2026-09-29 and GeoLite2 ASN of 2026-10-01, weighted by address space, on 2026-10-01 (country rows updated on 2026-10-02):
 
 | Database | Family | Agree | Disagree | Only in GeoLite2 | Only in ours |
 |---|---|---|---|---|---|
-| Country | IPv4 | 96.89 % | 3.11 % | 0.00 % | 0.04 % |
-| Country | IPv6 | 98.21 % | 1.78 % | 0.02 % | 0.07 % |
+| Country | IPv4 | 95.92 % | 4.08 % | 0.00 % | 0.04 % |
+| Country | IPv6 | 98.20 % | 1.78 % | 0.02 % | 0.07 % |
 | Country, without `inetnum` countries | IPv4 | 96.57 % | 3.43 % | 0.00 % | 0.04 % |
 | Country, without `inetnum` countries | IPv6 | 98.87 % | 1.11 % | 0.02 % | 0.07 % |
 | Country, RIR statistics only | IPv4 | 95.08 % | 4.92 % | 0.00 % | 0.04 % |

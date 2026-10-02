@@ -58,6 +58,42 @@ impl<T> FromIterator<(IpNet, T)> for PrefixMap<T> {
     }
 }
 
+fn block_end(start: u128, size: u32) -> u128 {
+    if size >= 128 {
+        u128::MAX
+    } else {
+        start | ((1u128 << size) - 1)
+    }
+}
+
+pub fn range_to_networks(start: IpAddr, end: IpAddr) -> Option<Vec<IpNet>> {
+    let (mut current, last, bits) = match (start, end) {
+        (IpAddr::V4(a), IpAddr::V4(b)) => (u128::from(u32::from(a)), u128::from(u32::from(b)), 32),
+        (IpAddr::V6(a), IpAddr::V6(b)) => (u128::from(a), u128::from(b), 128),
+        _ => return None,
+    };
+    if current > last {
+        return None;
+    }
+    let mut networks = Vec::new();
+    loop {
+        let mut size = current.trailing_zeros().min(bits);
+        while block_end(current, size) > last {
+            size -= 1;
+        }
+        let length = (bits - size) as u8;
+        networks.push(match start {
+            IpAddr::V4(_) => IpNet::V4(Ipv4Net::new((current as u32).into(), length).ok()?),
+            IpAddr::V6(_) => IpNet::V6(Ipv6Net::new(current.into(), length).ok()?),
+        });
+        let end = block_end(current, size);
+        if end >= last {
+            return Some(networks);
+        }
+        current = end + 1;
+    }
+}
+
 pub fn truncate(network: IpNet, length: u8) -> IpNet {
     match network.addr() {
         IpAddr::V4(addr) => IpNet::V4(Ipv4Net::new(addr, length).expect("valid length").trunc()),
@@ -88,5 +124,36 @@ mod tests {
         );
         assert_eq!(map.longest_match(net("10.0.0.0/7")), None);
         assert_eq!(map.covering(net("10.1.0.0/16")).count(), 2);
+    }
+
+    #[test]
+    fn splits_address_ranges() {
+        let split = |a: &str, b: &str| -> Vec<String> {
+            range_to_networks(a.parse().unwrap(), b.parse().unwrap())
+                .unwrap()
+                .iter()
+                .map(ToString::to_string)
+                .collect()
+        };
+        assert_eq!(
+            split("192.0.2.0", "192.0.3.127"),
+            ["192.0.2.0/24", "192.0.3.0/25"]
+        );
+        assert_eq!(split("0.0.0.0", "255.255.255.255"), ["0.0.0.0/0"]);
+        assert_eq!(
+            split("2631:7000::", "2631:700f:ffff:ffff:ffff:ffff:ffff:ffff"),
+            ["2631:7000::/28"]
+        );
+        assert_eq!(
+            split("::", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
+            ["::/0"]
+        );
+        assert_eq!(
+            split("10.0.0.1", "10.0.0.2"),
+            ["10.0.0.1/32", "10.0.0.2/32"]
+        );
+        assert!(
+            range_to_networks("10.0.0.2".parse().unwrap(), "10.0.0.1".parse().unwrap()).is_none()
+        );
     }
 }

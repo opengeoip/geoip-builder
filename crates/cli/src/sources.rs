@@ -2,7 +2,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use fetch::Source;
 use model::Registry;
-use src_geofeed::Seed;
 
 pub const DEFAULT_VRPS_URL: &str = "https://console.rpki-client.org/vrps.json";
 
@@ -20,12 +19,15 @@ pub fn delegated(registry: Registry) -> Source {
     )
 }
 
-pub fn atlas() -> Source {
-    let days = SystemTime::now()
+pub fn today() -> u64 {
+    SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64 / 86_400)
-        .unwrap_or_default();
-    let (year, month, day) = src_atlas::civil_from_days(days - 1);
+        .map(|d| d.as_secs() / 86_400)
+        .unwrap_or_default()
+}
+
+pub fn atlas() -> Source {
+    let (year, month, day) = src_atlas::civil_from_days(today() as i64 - 1);
     Source::new(
         "atlas-probes.json.bz2",
         src_atlas::archive_url(year, month, day),
@@ -34,6 +36,13 @@ pub fn atlas() -> Source {
 
 pub fn asnames() -> Source {
     Source::new("asn.txt", "https://ftp.ripe.net/ripe/asnames/asn.txt")
+}
+
+pub fn arin_geofeed_inetnums() -> Source {
+    Source::new(
+        "arin-geofeed-inetnums.json",
+        "https://geofeeds.packetvis.com/geolocatemuch/arin.inetnums",
+    )
 }
 
 pub fn vrps(url: &str) -> Source {
@@ -85,43 +94,13 @@ pub fn rpsl() -> Vec<(Source, Registry)> {
     .collect()
 }
 
-const GOOGLE: &[u32] = &[
-    15169, 19527, 36040, 36383, 36384, 36411, 41264, 43515, 45566, 139070, 139190, 395973, 396982,
-];
-
-pub const SEEDS: &[Seed] = &[
-    Seed {
-        url: "https://ip-ranges.amazonaws.com/geo-ip-feed.csv",
-        asns: &[7224, 8987, 14618, 16509],
-    },
-    Seed {
-        url: "https://www.gstatic.com/ipranges/cloud_geofeed",
-        asns: GOOGLE,
-    },
-    Seed {
-        url: "https://www.gstatic.com/geofeed/corp_external",
-        asns: GOOGLE,
-    },
-    Seed {
-        url: "https://api.cloudflare.com/local-ip-ranges.csv",
-        asns: &[13335, 14789, 209242],
-    },
-    Seed {
-        url: "https://geoip.linode.com/",
-        asns: &[20940, 63949],
-    },
-    Seed {
-        url: "https://www.digitalocean.com/geo/google.csv",
-        asns: &[14061],
-    },
-];
-
 pub fn all(collectors: &[String], vrps_url: &str) -> Vec<Source> {
     let mut sources: Vec<Source> = Registry::ALL.into_iter().map(delegated).collect();
     sources.push(asnames());
     sources.push(vrps(vrps_url));
     sources.extend(collectors.iter().map(|c| ris(c)));
     sources.extend(rpsl().into_iter().map(|(source, _)| source));
+    sources.push(arin_geofeed_inetnums());
     sources.push(atlas());
     sources
 }

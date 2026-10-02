@@ -7,7 +7,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use flate2::read::MultiGzDecoder;
 use mmdb_writer::Writer;
-use model::{Asn, Assignment, GeofeedRef, Location, PrefixMap, Registry};
+use model::{Assignment, GeofeedRef, Location, Registry};
 use src_bgp::RibCollector;
 use src_rpki::Validator;
 
@@ -58,15 +58,19 @@ pub fn rpsl_records(data_dir: &Path) -> Result<(Vec<GeofeedRef>, Vec<Assignment>
         references.extend(parsed.references);
         assignments.extend(parsed.assignments);
     }
+    let source = sources::arin_geofeed_inetnums();
+    let (_, arin, stats) = src_arin::parse(open(data_dir, &source)?)
+        .with_context(|| format!("parsing {}", source.name))?;
+    eprintln!(
+        "{}: {} objects, {} geofeed references, {} rejected",
+        source.name, stats.objects, stats.references, stats.rejected
+    );
+    references.extend(arin);
     Ok((references, assignments))
 }
 
 pub fn geofeed_urls(references: &[GeofeedRef]) -> Vec<String> {
-    let urls: BTreeSet<&str> = references
-        .iter()
-        .map(|r| r.url.as_str())
-        .chain(sources::SEEDS.iter().map(|s| s.url))
-        .collect();
+    let urls: BTreeSet<&str> = references.iter().map(|r| r.url.as_str()).collect();
     urls.into_iter().map(str::to_string).collect()
 }
 
@@ -115,7 +119,6 @@ pub fn run(
         started.elapsed()
     );
     write(asn, &out_dir.join("asn.mmdb"))?;
-    let origins: PrefixMap<Asn> = selected.iter().map(|r| (r.prefix, r.asn)).collect();
     drop(selected);
 
     let started = Instant::now();
@@ -139,27 +142,15 @@ pub fn run(
             None => missing += 1,
         }
     }
-    let seeds: Vec<(&[Asn], Vec<Location>)> = sources::SEEDS
-        .iter()
-        .filter_map(|seed| read_feed(&dir, seed.url).map(|locations| (seed.asns, locations)))
-        .collect();
     eprintln!(
-        "geofeeds: {} referenced feeds read, {} missing, {} of {} seed feeds read",
+        "geofeeds: {} referenced feeds read, {} missing",
         feeds.len(),
-        missing,
-        seeds.len(),
-        sources::SEEDS.len()
+        missing
     );
-    let (locations, stats) = merge::authorize_geofeeds(&references, &feeds, &seeds, &origins);
+    let (locations, stats) = merge::authorize_geofeeds(&references, &feeds);
     eprintln!(
-        "geofeeds: {} entries, {} accepted, {} without country, {} outside their inetnum, {} overridden by a more specific inetnum, {} seed entries accepted, {} rejected by origin AS",
-        stats.entries,
-        stats.accepted,
-        stats.no_country,
-        stats.not_anchored,
-        stats.overridden,
-        stats.seed_accepted,
-        stats.seed_rejected
+        "geofeeds: {} entries, {} accepted, {} without country, {} outside their inetnum, {} overridden by a more specific inetnum",
+        stats.entries, stats.accepted, stats.no_country, stats.not_anchored, stats.overridden
     );
     drop(feeds);
 

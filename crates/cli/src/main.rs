@@ -1,3 +1,4 @@
+mod arin_check;
 mod build;
 mod compare;
 mod evaluate;
@@ -31,6 +32,8 @@ struct DataArgs {
     rpki_valid_only: bool,
     #[arg(long, default_value_t = 32)]
     geofeed_workers: usize,
+    #[arg(long, default_value_t = 10)]
+    arin_check_sample: usize,
 }
 
 impl DataArgs {
@@ -104,6 +107,14 @@ fn fetch_all(data: &DataArgs) -> Result<()> {
                 failed.push(source.name);
             }
         }
+    }
+
+    if let Err(error) = arin_check::run(
+        &data.data_dir,
+        data.arin_check_sample,
+        Duration::from_secs(1),
+    ) {
+        eprintln!("arin check: skipped: {error:#}");
     }
 
     let (references, _) = build::rpsl_records(&data.data_dir)?;

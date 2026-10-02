@@ -27,4 +27,5 @@ src-rpki.workspace = true
 src-rpsl.workspace = true
 src-geofeed.workspace = true
 src-atlas.workspace = true
+src-arin.workspace = true
 flate2.workspace = true

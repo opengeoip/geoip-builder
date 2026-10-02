@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use model::{Asn, GeofeedRef, Location, PrefixMap};
+use model::{GeofeedRef, Location, PrefixMap};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct GeofeedStats {
@@ -9,15 +9,11 @@ pub struct GeofeedStats {
     pub no_country: usize,
     pub not_anchored: usize,
     pub overridden: usize,
-    pub seed_accepted: usize,
-    pub seed_rejected: usize,
 }
 
 pub fn authorize_geofeeds(
     references: &[GeofeedRef],
     feeds: &HashMap<String, Vec<Location>>,
-    seeds: &[(&[Asn], Vec<Location>)],
-    origins: &PrefixMap<Asn>,
 ) -> (Vec<Location>, GeofeedStats) {
     let mut anchors: PrefixMap<Vec<&str>> = PrefixMap::default();
     for reference in references {
@@ -29,24 +25,6 @@ pub fn authorize_geofeeds(
 
     let mut stats = GeofeedStats::default();
     let mut accepted = Vec::new();
-
-    for (asns, locations) in seeds {
-        for location in locations {
-            stats.entries += 1;
-            if location.country.is_none() {
-                stats.no_country += 1;
-                continue;
-            }
-            match origins.longest_match(location.network) {
-                Some((_, asn)) if asns.contains(asn) => {
-                    stats.seed_accepted += 1;
-                    accepted.push(location.clone());
-                }
-                _ => stats.seed_rejected += 1,
-            }
-        }
-    }
-
     let mut urls: Vec<&String> = feeds.keys().collect();
     urls.sort();
     for url in urls {
@@ -120,35 +98,20 @@ mod tests {
                 vec![location("11.0.200.0/24", Some("DE"))],
             ),
         ]);
-        let origins: PrefixMap<Asn> = [(net("13.0.0.0/16"), 64500), (net("14.0.0.0/16"), 64999)]
-            .into_iter()
-            .collect();
-        let seeds: Vec<(&[Asn], Vec<Location>)> = vec![(
-            &[64500],
-            vec![
-                location("13.0.1.0/24", Some("JP")),
-                location("14.0.1.0/24", Some("JP")),
-            ],
-        )];
-        let (accepted, stats) = authorize_geofeeds(&references, &feeds, &seeds, &origins);
+        let (accepted, stats) = authorize_geofeeds(&references, &feeds);
         let accepted: Vec<String> = accepted
             .iter()
             .map(|l| format!("{} {}", l.network, l.country.as_deref().unwrap()))
             .collect();
-        assert_eq!(
-            accepted,
-            ["13.0.1.0/24 JP", "11.0.1.0/24 FR", "11.0.200.0/24 DE"]
-        );
+        assert_eq!(accepted, ["11.0.1.0/24 FR", "11.0.200.0/24 DE"]);
         assert_eq!(
             stats,
             GeofeedStats {
-                entries: 8,
+                entries: 6,
                 accepted: 2,
                 no_country: 1,
                 not_anchored: 2,
                 overridden: 1,
-                seed_accepted: 1,
-                seed_rejected: 1,
             }
         );
     }

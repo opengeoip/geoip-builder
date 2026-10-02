@@ -1,7 +1,7 @@
 pub mod prefix_map;
 pub mod special;
 
-pub use prefix_map::PrefixMap;
+pub use prefix_map::{PrefixMap, range_to_networks};
 
 use std::fmt;
 use std::str::FromStr;
