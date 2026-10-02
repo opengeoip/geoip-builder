@@ -21,7 +21,8 @@ target/release/geoip-builder compare --kind country out/country.mmdb GeoLite2-Co
 - `--geofeed-workers` (default 32) sets how many hosts are crawled in parallel; the URLs of one host are fetched one after the other, 500 ms apart, with one retry after a `429`.
 - `--collector` (repeatable, default `rrc00`) selects the RIPE RIS collectors whose RIB dumps are used. `--vrps-url` points to another VRP export, such as a local Routinator.
 - `lookup` prints the network and record matching each address.
-- `evaluate` checks one or more databases against the RIPE Atlas probes: for every connected probe with a public address, the country it reports versus the country each database gives, per address family, with the most frequent errors and, for the first two databases, which one is right when they disagree. `--only <country>` and `--anchors-only` narrow the probes.
+- `evaluate` checks one or more databases against the RIPE Atlas probes: for every connected probe with a public address, the country it reports versus the country each database gives, per address family, for all probes, anchors (in datacentres) and other probes separately, with the most frequent errors and, for the first two databases, which one is right when they disagree. Probes listed as misplaced by [violating_ripe_probes](https://github.com/kizhikevich/violating_ripe_probes) and addresses inside an anycast prefix of the [LACeS census](https://github.com/ut-dacs/anycast-census) are left out, unless `--keep-suspicious` is set. `--only <country>` narrows the probes.
+- `fetch-latency` downloads once the results of the public RIPE Atlas ping measurements of the WHEREIS study (see below) into `--data-dir/latency`, resuming where it stopped, with `--workers` (default 6) connections and at most `--rate` (default 4) requests per second; `--max` caps one run. No Atlas key or credit is needed.
 - `coverage` lists, for every AS of the ASN database, the announced address space that no accepted geofeed covers, to find the networks whose geofeed is missing from the catalog. It writes a CSV (`--output`, default `out/geofeed-coverage.csv`; columns `asn`, `name`, `country`, `ipv4_announced`, `ipv4_without_geofeed`, `ipv4_share_without_geofeed`, `ipv6_announced_48`, `ipv6_without_geofeed_48`) sorted by IPv4 space without a geofeed, and prints the first `--top` (default 20).
 - `compare` measures how far a database is from a reference one, weighted by IPv4 addresses and IPv6 /48 networks, with the top disagreements and the largest ranges behind each of them. `--only <key>` (a country code, or `AS<n>`) restricts it to the ranges where either database has that value.
 
@@ -37,6 +38,9 @@ A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 fo
 | [RIPE RIS](https://ris.ripe.net/) RIB dumps (MRT) | `ris-<collector>.bview.gz` | origin AS of every announced prefix |
 | RPSL dumps of RIPE NCC (`inetnum`, `inet6num`), APNIC (`inetnum`, `inet6num`), AFRINIC and LACNIC | `rpsl-*.gz` | country of sub-allocations and assignments, geofeed references ([RFC 9632](https://www.rfc-editor.org/rfc/rfc9632)) |
 | [RIPE Atlas probe archive](https://ftp.ripe.net/ripe/atlas/probes/archive/) of the previous day | `atlas-probes.json.bz2` | ground truth for `evaluate` |
+| [violating_ripe_probes](https://github.com/kizhikevich/violating_ripe_probes), latest list | `violating-probes.txt` | Atlas probes whose reported location is likely wrong, left out of `evaluate` and of latency |
+| [LACeS anycast census](https://github.com/ut-dacs/anycast-census), latest IPv4 and IPv6 | `anycast-ipv4.csv`, `anycast-ipv6.csv` | anycast prefixes, left out of `evaluate` |
+| RIPE Atlas ping measurements tagged `neo-ip-20241018` (WHEREIS) | `latency/` | country of prefixes located by round-trip time |
 | [RFC 8805](https://www.rfc-editor.org/rfc/rfc8805) geofeeds referenced by those objects | `geofeeds/<hash>.csv` | country, region, city and postal code declared by the operator |
 | [`catalog/geofeeds.csv`](catalog/geofeeds.csv), written by `discover` and edited by hand | `geofeeds/<hash>.csv` | the list of geofeeds to crawl and their anchors |
 | ARIN NetRanges carrying a geofeed reference, compiled daily over RDAP by [geofeed-finder](https://github.com/massimocandela/geofeed-finder) and published at `geofeeds.packetvis.com` | `arin-geofeed-inetnums.json` | geofeed references for space registered at ARIN |
@@ -51,7 +55,7 @@ The base layer is the RIR delegated statistics: `country` and `registered_countr
 
 The `country:` of RPSL `inetnum` and `inet6num` objects then refines it, for blocks a LIR sub-allocates or assigns to a customer in another country (an operator's foreign subsidiary, an overseas territory, a leased block). An object is used only when it is strictly more specific than a delegation of the same RIR: objects for the allocation itself carry a country typed by the LIR, while the delegated statistics carry the one checked by the RIR, and placeholder objects for space a RIR does not manage are left out. `EU` and `ZZ` are ignored and lower-case codes are accepted.
 
-Accepted geofeed entries come last and override `country` with the location the operator declares. In every layer, `registered_country` and `registry` keep the values of the covering delegation, and entries are inserted from the least to the most specific prefix, so within a layer a more specific entry overrides its parent and each layer overrides the previous one.
+Then come prefixes located by latency (below), and accepted geofeed entries come last and override `country` with the location the operator declares. In every layer, `registered_country` and `registry` keep the values of the covering delegation, and entries are inserted from the least to the most specific prefix, so within a layer a more specific entry overrides its parent and each layer overrides the previous one.
 
 ### Geofeed authorization
 
@@ -59,6 +63,12 @@ A geofeed can claim any prefix, so an entry is only kept when its publisher is e
 
 - the geofeed must be referenced by an `inetnum`, `inet6num` or ARIN NetRange (a `geofeed:` attribute or a `Geofeed <url>` remark, over HTTP or HTTPS; like geofeed-finder, the common variants `Geofeed: <url>`, `geofeed:<url>` and `Comment: Geofeed <url>` are accepted, a bare URL is not), the most specific referencing object covering the entry must reference that same geofeed, as required by RFC 9632. An entry outside every object referencing its feed is dropped, and so is one inside a more specific object that references another feed;
 - entries without a country code ("do not geolocate") and lines that do not parse are skipped. A region is kept only when it is an ISO 3166-2 code of the entry's country.
+
+### Latency
+
+The [WHEREIS study](https://arxiv.org/abs/2602.11102) pinged one responsive address of each of about 40 000 IPv4 prefixes from about 28 RIPE Atlas probes on 2024-10-18, a few in every RIR region and five in the registered country, and published the measurements on RIPE Atlas under the tag `neo-ip-20241018`. Light in fibre covers about 100 km per millisecond of round trip, so a fast reply pins the target near the probe that measured it.
+
+Only prefixes of /22 or longer in IPv4 (/40 in IPv6) are used: the study measured a single address for some prefixes as large as a /8, which says nothing about the rest of it, and a large prefix would also hide the finer registry data below it. Such a prefix gets the country of the probe with the lowest round-trip time when that time is at most 3 ms (about 300 km) and every probe of another country is at least three times slower and 5 ms slower. Probes listed as misplaced are ignored. One address stands for the whole prefix and the measurements date from 2024, so this layer sits above the registry layers but below geofeeds, which are declared by the operator and finer.
 
 ### Geofeed catalog
 
@@ -136,10 +146,12 @@ Against RIPE Atlas probes on 2026-10-02 (`evaluate`, connected probes with a pub
 
 | Database | IPv4 correct | IPv6 correct |
 |---|---|---|
-| ours | 94.76 % | 79.50 % |
-| GeoLite2 Country | 97.72 % | 79.76 % |
+| ours | 95.13 % | 79.77 % |
+| GeoLite2 Country | 97.99 % | 80.00 % |
+| ours, anchors only | 90.94 % | 92.37 % |
+| GeoLite2 Country, anchors only | 93.41 % | 90.15 % |
 
-About 16 % of the IPv6 probe addresses have no answer in either database. Most of the remaining IPv4 gap comes from hosting and cloud networks that publish no geofeed (Oracle Cloud, Microsoft Azure) or leave ranges out of theirs.
+Probes listed as misplaced and anycast addresses are left out. The WHEREIS latency layer, with half of its measurements downloaded, does not change these figures: only 23 of the 489 IPv4 probes that GeoLite2 places right and this database does not fall in a measured prefix. About 16 % of the IPv6 probe addresses have no answer in either database. Most of the remaining IPv4 gap comes from hosting and cloud networks that publish no geofeed (Oracle Cloud, Microsoft Azure) or leave ranges out of theirs.
 
 Against GeoLite2 Country of 2026-09-29 and GeoLite2 ASN of 2026-10-01, weighted by address space, on 2026-10-01 (country rows updated on 2026-10-02):
 

@@ -1,11 +1,16 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
+use std::net::IpAddr;
 use std::path::{Path, PathBuf};
+
+use ipnet::IpNet;
 
 use anyhow::Result;
 use maxminddb::{Reader, path};
 use src_atlas::Probe;
+
+use crate::truth;
 
 struct Database {
     name: String,
@@ -120,14 +125,20 @@ fn report(
     println!();
 }
 
-pub fn run(
-    truth: &Path,
-    paths: &[PathBuf],
-    only: Option<&str>,
-    anchors_only: bool,
-    top: usize,
-) -> Result<()> {
-    let probes = src_atlas::parse(BufReader::new(File::open(truth)?))?;
+pub struct Options<'a> {
+    pub data_dir: &'a Path,
+    pub truth: &'a Path,
+    pub only: Option<&'a str>,
+    pub keep_suspicious: bool,
+    pub top: usize,
+}
+
+fn single(address: IpAddr) -> IpNet {
+    IpNet::from(address)
+}
+
+pub fn run(options: &Options<'_>, paths: &[PathBuf]) -> Result<()> {
+    let probes = src_atlas::parse(BufReader::new(File::open(options.truth)?))?;
     let databases: Vec<Database> = paths
         .iter()
         .map(|path| {
@@ -140,26 +151,63 @@ pub fn run(
             })
         })
         .collect::<Result<_>>()?;
+    let violating = truth::violating(options.data_dir)?;
+    let anycast = truth::anycast(options.data_dir)?;
+    let (mut misplaced, mut anycasted) = (0, 0);
     let selected: Vec<&Probe> = probes
         .iter()
-        .filter(|p| only.is_none_or(|c| p.country == c) && (!anchors_only || p.is_anchor))
+        .filter(|p| options.only.is_none_or(|c| p.country == c))
+        .filter(|p| {
+            if options.keep_suspicious {
+                return true;
+            }
+            if violating.contains(&p.id) {
+                misplaced += 1;
+                return false;
+            }
+            if anycast.longest_match(single(p.address)).is_some() {
+                anycasted += 1;
+                return false;
+            }
+            true
+        })
         .collect();
+    if !options.keep_suspicious {
+        println!(
+            "excluded {misplaced} addresses of probes listed as misplaced ({} listed) and {anycasted} anycast addresses",
+            violating.len()
+        );
+        println!();
+    }
     for (label, v4) in [("IPv4", true), ("IPv6", false)] {
-        let family: Vec<&Probe> = selected
-            .iter()
-            .copied()
-            .filter(|p| p.address.is_ipv4() == v4)
-            .collect();
-        let answers: Vec<Vec<Option<String>>> = databases
-            .iter()
-            .map(|db| {
-                family
-                    .iter()
-                    .map(|p| country(&db.reader, p))
-                    .collect::<Result<_>>()
-            })
-            .collect::<Result<_>>()?;
-        report(label, &family, &answers, &databases, top);
+        for (group, filter) in [
+            ("", None),
+            (" anchors", Some(true)),
+            (" probes", Some(false)),
+        ] {
+            let family: Vec<&Probe> = selected
+                .iter()
+                .copied()
+                .filter(|p| p.address.is_ipv4() == v4 && filter.is_none_or(|a| p.is_anchor == a))
+                .collect();
+            let answers: Vec<Vec<Option<String>>> = databases
+                .iter()
+                .map(|db| {
+                    family
+                        .iter()
+                        .map(|p| country(&db.reader, p))
+                        .collect::<Result<_>>()
+                })
+                .collect::<Result<_>>()?;
+            let top = if filter.is_none() { options.top } else { 0 };
+            report(
+                &format!("{label}{group}"),
+                &family,
+                &answers,
+                &databases,
+                top,
+            );
+        }
     }
     Ok(())
 }

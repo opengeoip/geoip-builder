@@ -3,7 +3,9 @@ mod build;
 mod compare;
 mod coverage;
 mod evaluate;
+mod latency;
 mod sources;
+mod truth;
 
 use std::fs;
 use std::net::IpAddr;
@@ -69,6 +71,16 @@ enum Command {
         #[command(flatten)]
         data: DataArgs,
     },
+    FetchLatency {
+        #[arg(long, default_value = "data")]
+        data_dir: PathBuf,
+        #[arg(long, default_value_t = 4.0)]
+        rate: f64,
+        #[arg(long, default_value_t = 6)]
+        workers: usize,
+        #[arg(long)]
+        max: Option<usize>,
+    },
     Coverage {
         #[command(flatten)]
         data: DataArgs,
@@ -96,10 +108,12 @@ enum Command {
     Evaluate {
         #[arg(long, default_value = "data/atlas-probes.json.bz2")]
         truth: PathBuf,
+        #[arg(long, default_value = "data")]
+        data_dir: PathBuf,
         #[arg(long)]
         only: Option<String>,
         #[arg(long)]
-        anchors_only: bool,
+        keep_suspicious: bool,
         #[arg(long, default_value_t = 10)]
         top: usize,
         #[arg(required = true)]
@@ -132,6 +146,10 @@ fn fetch_all(data: &DataArgs) -> Result<()> {
                 failed.push(source.name);
             }
         }
+    }
+
+    if let Err(error) = truth::fetch_violating(&fetcher) {
+        eprintln!("violating probes: skipped: {error:#}");
     }
 
     if let Err(error) = arin_check::run(
@@ -206,11 +224,27 @@ fn main() -> Result<()> {
         } => lookup(database, addresses),
         Command::Evaluate {
             truth,
+            data_dir,
             only,
-            anchors_only,
+            keep_suspicious,
             top,
             databases,
-        } => evaluate::run(&truth, &databases, only.as_deref(), anchors_only, top),
+        } => evaluate::run(
+            &evaluate::Options {
+                data_dir: &data_dir,
+                truth: &truth,
+                only: only.as_deref(),
+                keep_suspicious,
+                top,
+            },
+            &databases,
+        ),
+        Command::FetchLatency {
+            data_dir,
+            rate,
+            workers,
+            max,
+        } => latency::run_fetch(&data_dir, rate, workers, max),
         Command::Compare {
             kind,
             top,

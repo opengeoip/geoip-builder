@@ -45,6 +45,31 @@ pub fn arin_geofeed_inetnums() -> Source {
     )
 }
 
+pub fn violating_probes_index() -> Source {
+    Source::new(
+        "violating-probes-index.json",
+        "https://api.github.com/repos/kizhikevich/violating_ripe_probes/contents",
+    )
+}
+
+pub fn violating_probes(file: &str) -> Source {
+    Source::new(
+        "violating-probes.txt",
+        format!("https://raw.githubusercontent.com/kizhikevich/violating_ripe_probes/main/{file}"),
+    )
+}
+
+pub fn anycast(version: u8) -> Source {
+    Source::new(
+        format!("anycast-ipv{version}.csv"),
+        format!(
+            "https://raw.githubusercontent.com/ut-dacs/anycast-census/main/IPv{version}-latest.csv"
+        ),
+    )
+}
+
+pub const WHEREIS_TAG: &str = "neo-ip-20241018";
+
 pub fn vrps(url: &str) -> Source {
     Source::new("vrps.json", url)
 }
@@ -102,5 +127,8 @@ pub fn all(collectors: &[String], vrps_url: &str) -> Vec<Source> {
     sources.extend(rpsl().into_iter().map(|(source, _)| source));
     sources.push(arin_geofeed_inetnums());
     sources.push(atlas());
+    sources.push(anycast(4));
+    sources.push(anycast(6));
+    sources.push(violating_probes_index());
     sources
 }
