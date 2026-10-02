@@ -11,11 +11,13 @@ target/release/geoip-builder lookup out/asn.mmdb 1.1.1.1 2a01:cb00::1
 target/release/geoip-builder compare --kind country out/country.mmdb GeoLite2-Country.mmdb
 ```
 
-- `fetch` downloads every source into `--data-dir`, then every geofeed referenced by the RPSL dumps into `--data-dir/geofeeds`, with conditional requests (`If-None-Match`, `If-Modified-Since`), so running it often costs little when nothing changed. Failed geofeeds are listed in `geofeeds/failures.tsv` and keep their previous copy, if any.
-- `build` reads only `--data-dir` and writes `country.mmdb`, `city.mmdb` and `asn.mmdb` into `--out-dir`. A build never touches the network, so it can be replayed on a saved data directory.
+- `fetch` downloads every source into `--data-dir`, runs `discover`, then downloads every geofeed of the catalog into `--data-dir/geofeeds`, with conditional requests (`If-None-Match`, `If-Modified-Since`), so running it often costs little when nothing changed. Failed geofeeds are listed in `geofeeds/failures.tsv` and keep their previous copy, if any.
+- `discover` reads the RPSL dumps and the ARIN NetRanges already in `--data-dir` and rewrites the geofeed catalog (`--geofeeds`, default `catalog/geofeeds.csv`) with every geofeed reference they contain, keeping the rows added by hand.
+- `build` reads only `--data-dir` and the geofeed catalog and writes `country.mmdb`, `city.mmdb` and `asn.mmdb` into `--out-dir`. A build never touches the network, so it can be replayed on a saved data directory.
 - `run` is `fetch` followed by `build`.
 - `--rpki-valid-only` restricts the ASN database to RPKI-valid routes (see below).
 - a source that fails to download keeps its previous copy; `fetch` reports it and exits with an error once everything else is done.
+- `--geofeeds` (default `catalog/geofeeds.csv`) is the geofeed catalog (see below).
 - `--geofeed-workers` (default 32) sets how many hosts are crawled in parallel; the URLs of one host are fetched one after the other, 500 ms apart, with one retry after a `429`.
 - `--collector` (repeatable, default `rrc00`) selects the RIPE RIS collectors whose RIB dumps are used. `--vrps-url` points to another VRP export, such as a local Routinator.
 - `lookup` prints the network and record matching each address.
@@ -35,6 +37,7 @@ A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 fo
 | RPSL dumps of RIPE NCC (`inetnum`, `inet6num`), APNIC (`inetnum`, `inet6num`), AFRINIC and LACNIC | `rpsl-*.gz` | country of sub-allocations and assignments, geofeed references ([RFC 9632](https://www.rfc-editor.org/rfc/rfc9632)) |
 | [RIPE Atlas probe archive](https://ftp.ripe.net/ripe/atlas/probes/archive/) of the previous day | `atlas-probes.json.bz2` | ground truth for `evaluate` |
 | [RFC 8805](https://www.rfc-editor.org/rfc/rfc8805) geofeeds referenced by those objects | `geofeeds/<hash>.csv` | country, region, city and postal code declared by the operator |
+| [`catalog/geofeeds.csv`](catalog/geofeeds.csv), written by `discover` and edited by hand | `geofeeds/<hash>.csv` | the list of geofeeds to crawl and their anchors |
 | ARIN NetRanges carrying a geofeed reference, compiled daily over RDAP by [geofeed-finder](https://github.com/massimocandela/geofeed-finder) and published at `geofeeds.packetvis.com` | `arin-geofeed-inetnums.json` | geofeed references for space registered at ARIN |
 
 ARIN publishes no `inetnum` dump without a [Bulk Whois](https://www.arin.net/reference/research/bulkwhois/) agreement, and its RDAP terms of use forbid compiling its database in bulk. The ARIN references therefore come from the file geofeed-finder publishes every day, which goes through the same RFC 9632 checks as the other registries. On every `fetch`, `--arin-check-sample` (default 10) NetRanges of that file, chosen anew each day, are looked up in ARIN RDAP one per second, and any difference between the file and the registry is reported. An ARIN Bulk Whois dump would replace that file.
@@ -53,8 +56,32 @@ Accepted geofeed entries come last and override `country` with the location the 
 
 A geofeed can claim any prefix, so an entry is only kept when its publisher is entitled to it:
 
-- the geofeed must be referenced by an `inetnum`, `inet6num` or ARIN NetRange (a `geofeed:` attribute or a `Geofeed <url>` remark, HTTPS only; like geofeed-finder, the common variants `Geofeed: <url>`, `geofeed:<url>` and `Comment: Geofeed <url>` are accepted, a bare URL is not), the most specific referencing object covering the entry must reference that same geofeed, as required by RFC 9632. An entry outside every object referencing its feed is dropped, and so is one inside a more specific object that references another feed;
+- the geofeed must be referenced by an `inetnum`, `inet6num` or ARIN NetRange (a `geofeed:` attribute or a `Geofeed <url>` remark, over HTTP or HTTPS; like geofeed-finder, the common variants `Geofeed: <url>`, `geofeed:<url>` and `Comment: Geofeed <url>` are accepted, a bare URL is not), the most specific referencing object covering the entry must reference that same geofeed, as required by RFC 9632. An entry outside every object referencing its feed is dropped, and so is one inside a more specific object that references another feed;
 - entries without a country code ("do not geolocate") and lines that do not parse are skipped. A region is kept only when it is an ISO 3166-2 code of the entry's country.
+
+### Geofeed catalog
+
+`catalog/geofeeds.csv` lists every geofeed the build uses, with a header line and three columns:
+
+| Column | Content |
+|---|---|
+| `url` | geofeed URL |
+| `network` | prefix of the registry object that references it, empty for an unanchored geofeed |
+| `source` | `afrinic`, `apnic`, `arin`, `lacnic`, `ripencc` for discovered rows, `manual` for rows added by hand |
+
+`discover` regenerates every non-`manual` row from the registries and keeps the `manual` rows untouched, so the catalog is versioned and its diffs show which references appeared or disappeared. Rows are sorted and one object referencing a geofeed gives one row per CIDR block it covers. Lines starting with `#` are comments.
+
+A `manual` row with a `network` anchors its geofeed on that prefix exactly like a registry reference. A `manual` row without a `network` is for an operator that publishes a geofeed without referencing it from any registry object, so that no RFC 9632 discovery finds it. Since nothing vouches for such a feed, its publisher is inferred from the data, with no per-feed configuration:
+
+- every entry is matched to the origin AS of the most specific announced route covering it (from the ASN database); entries covered by no route are dropped;
+- the AS originating the most entries of the feed is its publisher, together with every other origin AS of the feed whose name in `asn.txt` shares a distinctive word with it (generic words such as `network`, `cloud` or `inc` do not count): `AMAZON-02` and `AMAZON-EXPANSION`, or `Akamai Connected Cloud` and `AKAMAI-ASN1`;
+- only entries announced by the publisher are kept, so ranges a customer announces itself (bring-your-own-IP) are dropped.
+
+Unanchored geofeeds form a layer of their own, between `inetnum` countries and anchored geofeeds: an anchored geofeed always wins.
+
+### Transport
+
+Unlike RFC 9632, which requires HTTPS, `http://` references are accepted and certificates of geofeed servers are not verified: the authority of a feed comes from the registry object that references it, and the containment check above bounds what a tampered feed could claim to the prefixes of that object's holder. Certificates are still verified for every other source.
 
 Signed geofeeds (RFC 9632 section 5) are not verified: very few are signed.
 
@@ -108,16 +135,16 @@ Against RIPE Atlas probes on 2026-10-02 (`evaluate`, connected probes with a pub
 
 | Database | IPv4 correct | IPv6 correct |
 |---|---|---|
-| ours | 93.38 % | 78.72 % |
+| ours | 94.76 % | 79.50 % |
 | GeoLite2 Country | 97.72 % | 79.76 % |
 
-About 16 % of the IPv6 probe addresses have no answer in either database. Most of the IPv4 gap comes from hosting and cloud networks whose geofeeds are not referenced from any registry object (AWS, Google Cloud, DigitalOcean, Vultr, Starlink) or which publish none (Oracle Cloud, Microsoft Azure).
+About 16 % of the IPv6 probe addresses have no answer in either database. Most of the remaining IPv4 gap comes from hosting and cloud networks that publish no geofeed (Oracle Cloud, Microsoft Azure) or leave ranges out of theirs.
 
 Against GeoLite2 Country of 2026-09-29 and GeoLite2 ASN of 2026-10-01, weighted by address space, on 2026-10-01 (country rows updated on 2026-10-02):
 
 | Database | Family | Agree | Disagree | Only in GeoLite2 | Only in ours |
 |---|---|---|---|---|---|
-| Country | IPv4 | 95.92 % | 4.08 % | 0.00 % | 0.04 % |
+| Country | IPv4 | 97.07 % | 2.93 % | 0.00 % | 0.04 % |
 | Country | IPv6 | 98.20 % | 1.78 % | 0.02 % | 0.07 % |
 | Country, without `inetnum` countries | IPv4 | 96.57 % | 3.43 % | 0.00 % | 0.04 % |
 | Country, without `inetnum` countries | IPv6 | 98.87 % | 1.11 % | 0.02 % | 0.07 % |

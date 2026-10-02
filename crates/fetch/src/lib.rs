@@ -6,6 +6,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use ureq::Agent;
+use ureq::tls::TlsConfig;
 
 #[derive(Clone, Debug)]
 pub struct Source {
@@ -57,6 +58,7 @@ pub struct Options {
     pub connect_timeout: Duration,
     pub global_timeout: Option<Duration>,
     pub max_size: u64,
+    pub verify_tls: bool,
 }
 
 impl Default for Options {
@@ -65,6 +67,7 @@ impl Default for Options {
             connect_timeout: Duration::from_secs(30),
             global_timeout: None,
             max_size: u64::MAX,
+            verify_tls: true,
         }
     }
 }
@@ -87,6 +90,11 @@ impl Fetcher {
             .user_agent(concat!("geoip-builder/", env!("CARGO_PKG_VERSION")))
             .timeout_connect(Some(options.connect_timeout))
             .timeout_global(options.global_timeout)
+            .tls_config(
+                TlsConfig::builder()
+                    .disable_verification(!options.verify_tls)
+                    .build(),
+            )
             .build()
             .new_agent();
         Ok(Self {

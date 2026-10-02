@@ -50,7 +50,7 @@ impl Object {
         let Some(url) = object.geofeed.or(object.remark) else {
             return;
         };
-        if is_https(&url) {
+        if is_web_url(&url) {
             out.stats.references += 1;
             out.references
                 .extend(networks.into_iter().map(|network| GeofeedRef {
@@ -115,8 +115,11 @@ pub fn remark_url(value: &str) -> Option<&str> {
     (rest.starts_with([':', ' ', '\t'])).then_some(url)
 }
 
-pub fn is_https(url: &str) -> bool {
-    url.len() > 8 && starts_with_ignore_case(url, "https://") && !url.contains(char::is_whitespace)
+pub fn is_web_url(url: &str) -> bool {
+    ["https://", "http://"]
+        .iter()
+        .any(|scheme| url.len() > scheme.len() && starts_with_ignore_case(url, scheme))
+        && !url.contains(char::is_whitespace)
 }
 
 pub fn parse_networks(value: &str) -> Option<Vec<IpNet>> {
@@ -160,7 +163,10 @@ remarks:    Geofeed https://fibramax.example/geofeeds.csv
 source:     LACNIC
 
 inet6num:       2001:db8::/32
-remarks:        geofeed http://insecure.example/feed.csv
+remarks:        geofeed http://plain.example/feed.csv
+
+inet6num:       2001:db9::/32
+remarks:        geofeed ftp://old.example/feed.csv
 
 inetnum:        10.0.0.0 - 10.0.0.255
 country:        EU
@@ -196,14 +202,18 @@ geofeed:        https://ignored.example/feed.csv
                     network: net("45.4.200.0/22"),
                     url: "https://fibramax.example/geofeeds.csv".into()
                 },
+                GeofeedRef {
+                    network: net("2001:db8::/32"),
+                    url: "http://plain.example/feed.csv".into()
+                },
             ]
         );
         assert_eq!(
             parsed.stats,
             Stats {
-                objects: 4,
+                objects: 5,
                 countries: 1,
-                references: 2,
+                references: 3,
                 rejected: 1
             }
         );

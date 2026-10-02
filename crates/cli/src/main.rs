@@ -34,6 +34,8 @@ struct DataArgs {
     geofeed_workers: usize,
     #[arg(long, default_value_t = 10)]
     arin_check_sample: usize,
+    #[arg(long, default_value = "catalog/geofeeds.csv")]
+    geofeeds: PathBuf,
 }
 
 impl DataArgs {
@@ -49,6 +51,10 @@ impl DataArgs {
 #[derive(Subcommand)]
 enum Command {
     Fetch {
+        #[command(flatten)]
+        data: DataArgs,
+    },
+    Discover {
         #[command(flatten)]
         data: DataArgs,
     },
@@ -117,8 +123,8 @@ fn fetch_all(data: &DataArgs) -> Result<()> {
         eprintln!("arin check: skipped: {error:#}");
     }
 
-    let (references, _) = build::rpsl_records(&data.data_dir)?;
-    let urls = build::geofeed_urls(&references);
+    build::discover(&data.data_dir, &data.geofeeds)?;
+    let urls = build::geofeed_urls(&src_geofeed::list::read(&data.geofeeds)?);
     let dir = build::geofeed_dir(&data.data_dir);
     let fetcher = Fetcher::with_options(
         &dir,
@@ -126,6 +132,7 @@ fn fetch_all(data: &DataArgs) -> Result<()> {
             connect_timeout: Duration::from_secs(10),
             global_timeout: Some(Duration::from_secs(120)),
             max_size: 256 << 20,
+            verify_tls: false,
         },
     )?;
     let started = Instant::now();
@@ -167,12 +174,14 @@ fn lookup(database: PathBuf, addresses: Vec<IpAddr>) -> Result<()> {
 fn main() -> Result<()> {
     match Cli::parse().command {
         Command::Fetch { data } => fetch_all(&data),
+        Command::Discover { data } => build::discover(&data.data_dir, &data.geofeeds),
         Command::Build { data, out_dir } => build::run(
             &data.data_dir,
             &out_dir,
             &data.collectors,
             &data.vrps_url,
             data.policy(),
+            &data.geofeeds,
         ),
         Command::Run { data, out_dir } => {
             fetch_all(&data)?;
@@ -182,6 +191,7 @@ fn main() -> Result<()> {
                 &data.collectors,
                 &data.vrps_url,
                 data.policy(),
+                &data.geofeeds,
             )
         }
         Command::Lookup {

@@ -11,9 +11,10 @@ publish = false
 anyhow = "1.0.104"
 bzip2 = "0.6.1"
 bgpkit-parser = { version = "0.22.0", default-features = false, features = ["parser"] }
+csv = "1.4.0"
 clap = { version = "4.6.7", features = ["derive"] }
 flate2 = "1.1.10"
-ipnet = "2.12.2"
+ipnet = { version = "2.12.2", features = ["serde"] }
 ipnetwork = "0.21.1"
 maxminddb = "0.32.0"
 serde = { version = "1", features = ["derive"] }

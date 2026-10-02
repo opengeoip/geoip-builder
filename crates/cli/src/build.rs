@@ -7,9 +7,11 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use flate2::read::MultiGzDecoder;
 use mmdb_writer::Writer;
-use model::{Assignment, GeofeedRef, Location, Registry};
+use model::{Asn, Assignment, GeofeedRef, Location, PrefixMap, Registry};
 use src_bgp::RibCollector;
 use src_rpki::Validator;
+
+use src_geofeed::list;
 
 use crate::sources;
 
@@ -44,7 +46,12 @@ pub fn geofeed_dir(data_dir: &Path) -> PathBuf {
     data_dir.join("geofeeds")
 }
 
-pub fn rpsl_records(data_dir: &Path) -> Result<(Vec<GeofeedRef>, Vec<Assignment>)> {
+pub struct RpslRecords {
+    pub references: Vec<(Registry, GeofeedRef)>,
+    pub assignments: Vec<Assignment>,
+}
+
+pub fn rpsl_records(data_dir: &Path) -> Result<RpslRecords> {
     let mut references = Vec::new();
     let mut assignments = Vec::new();
     for (source, registry) in sources::rpsl() {
@@ -55,7 +62,7 @@ pub fn rpsl_records(data_dir: &Path) -> Result<(Vec<GeofeedRef>, Vec<Assignment>
             "{}: {} objects, {} with a country, {} geofeed references, {} rejected",
             source.name, stats.objects, stats.countries, stats.references, stats.rejected
         );
-        references.extend(parsed.references);
+        references.extend(parsed.references.into_iter().map(|r| (registry, r)));
         assignments.extend(parsed.assignments);
     }
     let source = sources::arin_geofeed_inetnums();
@@ -65,12 +72,29 @@ pub fn rpsl_records(data_dir: &Path) -> Result<(Vec<GeofeedRef>, Vec<Assignment>
         "{}: {} objects, {} geofeed references, {} rejected",
         source.name, stats.objects, stats.references, stats.rejected
     );
-    references.extend(arin);
-    Ok((references, assignments))
+    references.extend(arin.into_iter().map(|r| (Registry::Arin, r)));
+    Ok(RpslRecords {
+        references,
+        assignments,
+    })
 }
 
-pub fn geofeed_urls(references: &[GeofeedRef]) -> Vec<String> {
-    let urls: BTreeSet<&str> = references.iter().map(|r| r.url.as_str()).collect();
+pub fn discover(data_dir: &Path, geofeeds: &Path) -> Result<()> {
+    let references = rpsl_records(data_dir)?.references;
+    let discovered = references
+        .into_iter()
+        .map(|(registry, reference)| list::Row {
+            url: reference.url,
+            network: Some(reference.network),
+            source: registry.as_str().to_string(),
+        });
+    let rows = list::merge_discovered(geofeeds, discovered)?;
+    eprintln!("{}: {rows} rows", geofeeds.display());
+    Ok(())
+}
+
+pub fn geofeed_urls(rows: &[list::Row]) -> Vec<String> {
+    let urls: BTreeSet<&str> = rows.iter().map(|r| r.url.as_str()).collect();
     urls.into_iter().map(str::to_string).collect()
 }
 
@@ -88,6 +112,7 @@ pub fn run(
     collectors: &[String],
     vrps_url: &str,
     policy: merge::RpkiPolicy,
+    geofeeds: &Path,
 ) -> Result<()> {
     fs::create_dir_all(out_dir)?;
     let epoch = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
@@ -119,6 +144,7 @@ pub fn run(
         started.elapsed()
     );
     write(asn, &out_dir.join("asn.mmdb"))?;
+    let origins: PrefixMap<Asn> = selected.iter().map(|r| (r.prefix, r.asn)).collect();
     drop(selected);
 
     let started = Instant::now();
@@ -130,7 +156,28 @@ pub fn run(
         delegations.extend(parsed);
     }
 
-    let (references, assignments) = rpsl_records(data_dir)?;
+    let assignments = rpsl_records(data_dir)?.assignments;
+    let rows = list::read(geofeeds)?;
+    let references: Vec<GeofeedRef> = rows
+        .iter()
+        .filter_map(|row| {
+            row.network.map(|network| GeofeedRef {
+                network,
+                url: row.url.clone(),
+            })
+        })
+        .collect();
+    let listed_urls: BTreeSet<&str> = rows
+        .iter()
+        .filter(|row| row.network.is_none())
+        .map(|row| row.url.as_str())
+        .collect();
+    eprintln!(
+        "{}: {} anchored references, {} unanchored geofeeds",
+        geofeeds.display(),
+        references.len(),
+        listed_urls.len()
+    );
     let dir = geofeed_dir(data_dir);
     let mut feeds: HashMap<String, Vec<Location>> = HashMap::new();
     let mut missing = 0;
@@ -154,7 +201,29 @@ pub fn run(
     );
     drop(feeds);
 
-    let (country, city, stats) = merge::location_dbs(delegations, assignments, locations, epoch);
+    let listed: Vec<(String, Vec<Location>)> = listed_urls
+        .into_iter()
+        .filter_map(|url| read_feed(&dir, url).map(|locations| (url.to_string(), locations)))
+        .collect();
+    let (listed, reports) = merge::authorize_listed_geofeeds(&listed, &origins, &names);
+    for report in &reports {
+        let publishers: Vec<String> = report
+            .publishers
+            .iter()
+            .map(|asn| format!("AS{asn}"))
+            .collect();
+        eprintln!(
+            "listed geofeed {}: {} entries, {} accepted, {} unrouted, publisher {}",
+            report.url,
+            report.entries,
+            report.accepted,
+            report.unrouted,
+            publishers.join(" ")
+        );
+    }
+
+    let (country, city, stats) =
+        merge::location_dbs(delegations, assignments, vec![listed, locations], epoch);
     eprintln!(
         "location: {} delegations, {} inetnum countries applied, {} ignored (not inside a delegation of their registry), {} geofeed entries, in {:.1?}",
         stats.delegations,

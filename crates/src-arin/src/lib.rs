@@ -25,7 +25,7 @@ impl NetRange {
 fn geofeed_in<'a>(lines: impl Iterator<Item = &'a str>) -> Option<&'a str> {
     lines
         .filter_map(|line| src_rpsl::remark_url(line.trim()))
-        .find(|url| src_rpsl::is_https(url))
+        .find(|url| src_rpsl::is_web_url(url))
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -93,7 +93,7 @@ mod tests {
         let input = r#"[
             {"handle":"NET-223-165-96-0-1","startAddress":"223.165.96.0","endAddress":"223.165.111.255","remarks":["Geofeed https://gpcom.example/geofeed.csv"]},
             {"handle":"NET6-2631-7000-1","startAddress":"2631:7000::","endAddress":"2631:700f:ffff:ffff:ffff:ffff:ffff:ffff","remarks":["hello","geofeed https://fiber.example/g.csv"]},
-            {"handle":"NET-1","startAddress":"192.0.2.0","endAddress":"192.0.2.255","remarks":["Geofeed http://insecure.example/g.csv"]}
+            {"handle":"NET-1","startAddress":"192.0.2.0","endAddress":"192.0.2.255","remarks":["Geofeed ftp://old.example/g.csv"]}
         ]"#;
         let (ranges, references, stats) = parse(input.as_bytes()).unwrap();
         assert_eq!(ranges.len(), 3);
