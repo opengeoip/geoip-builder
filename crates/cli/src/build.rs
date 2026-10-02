@@ -7,7 +7,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use flate2::read::MultiGzDecoder;
 use mmdb_writer::Writer;
-use model::{Asn, Assignment, GeofeedRef, Location, PrefixMap, Registry};
+use model::{AsName, Asn, Assignment, Delegation, GeofeedRef, Location, PrefixMap, Registry};
 use src_bgp::RibCollector;
 use src_rpki::Validator;
 
@@ -106,48 +106,55 @@ fn read_feed(dir: &Path, url: &str) -> Option<Vec<Location>> {
         .map(|(locations, _)| locations)
 }
 
-pub fn run(
-    data_dir: &Path,
-    out_dir: &Path,
-    collectors: &[String],
-    vrps_url: &str,
-    policy: merge::RpkiPolicy,
-    geofeeds: &Path,
-) -> Result<()> {
-    fs::create_dir_all(out_dir)?;
+pub struct Inputs<'a> {
+    pub data_dir: &'a Path,
+    pub collectors: &'a [String],
+    pub vrps_url: &'a str,
+    pub policy: merge::RpkiPolicy,
+    pub geofeeds: &'a Path,
+}
+
+pub struct Prepared {
+    pub epoch: u64,
+    pub policy: merge::RpkiPolicy,
+    pub names: HashMap<Asn, AsName>,
+    pub selected: Vec<merge::SelectedRoute>,
+    pub delegations: Vec<Delegation>,
+    pub assignments: Vec<Assignment>,
+    pub listed: Vec<Location>,
+    pub anchored: Vec<Location>,
+}
+
+pub fn prepare(inputs: &Inputs<'_>) -> Result<Prepared> {
+    let data_dir = inputs.data_dir;
     let epoch = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
 
     let started = Instant::now();
     let names = src_asnames::parse(open(data_dir, &sources::asnames())?)?;
     eprintln!("asn.txt: {} names", names.len());
-    let vrps = src_rpki::parse(open(data_dir, &sources::vrps(vrps_url))?)?;
+    let vrps = src_rpki::parse(open(data_dir, &sources::vrps(inputs.vrps_url))?)?;
     eprintln!("vrps.json: {} VRPs", vrps.len());
     let validator = Validator::new(&vrps);
     drop(vrps);
     let mut rib = RibCollector::default();
-    for collector in collectors {
+    for collector in inputs.collectors {
         let source = sources::ris(collector);
         rib.add_file(&source.path(data_dir))?;
         eprintln!("{}: parsed after {:.1?}", source.name, started.elapsed());
     }
     let routes = rib.into_routes();
-    let (selected, stats) = merge::select_origins(&routes, &validator, policy);
+    let (selected, stats) = merge::select_origins(&routes, &validator, inputs.policy);
     drop(routes);
-    let (asn, unnamed) = merge::asn_db(&selected, &names, policy, epoch);
     eprintln!(
-        "asn: {} routes, {} valid, {} invalid, {} not found, {} kept without a name, in {:.1?}",
+        "asn: {} routes, {} valid, {} invalid, {} not found, in {:.1?}",
         stats.routes,
         stats.valid,
         stats.invalid,
         stats.not_found,
-        unnamed,
         started.elapsed()
     );
-    write(asn, &out_dir.join("asn.mmdb"))?;
     let origins: PrefixMap<Asn> = selected.iter().map(|r| (r.prefix, r.asn)).collect();
-    drop(selected);
 
-    let started = Instant::now();
     let mut delegations = Vec::new();
     for registry in Registry::ALL {
         let parsed = src_delegated::parse(open(data_dir, &sources::delegated(registry))?)
@@ -157,7 +164,7 @@ pub fn run(
     }
 
     let assignments = rpsl_records(data_dir)?.assignments;
-    let rows = list::read(geofeeds)?;
+    let rows = list::read(inputs.geofeeds)?;
     let references: Vec<GeofeedRef> = rows
         .iter()
         .filter_map(|row| {
@@ -174,7 +181,7 @@ pub fn run(
         .collect();
     eprintln!(
         "{}: {} anchored references, {} unanchored geofeeds",
-        geofeeds.display(),
+        inputs.geofeeds.display(),
         references.len(),
         listed_urls.len()
     );
@@ -194,7 +201,7 @@ pub fn run(
         feeds.len(),
         missing
     );
-    let (locations, stats) = merge::authorize_geofeeds(&references, &feeds);
+    let (anchored, stats) = merge::authorize_geofeeds(&references, &feeds);
     eprintln!(
         "geofeeds: {} entries, {} accepted, {} without country, {} outside their inetnum, {} overridden by a more specific inetnum",
         stats.entries, stats.accepted, stats.no_country, stats.not_anchored, stats.overridden
@@ -222,8 +229,37 @@ pub fn run(
         );
     }
 
-    let (country, city, stats) =
-        merge::location_dbs(delegations, assignments, vec![listed, locations], epoch);
+    Ok(Prepared {
+        epoch,
+        policy: inputs.policy,
+        names,
+        selected,
+        delegations,
+        assignments,
+        listed,
+        anchored,
+    })
+}
+
+pub fn run(inputs: &Inputs<'_>, out_dir: &Path) -> Result<()> {
+    fs::create_dir_all(out_dir)?;
+    let prepared = prepare(inputs)?;
+    let (asn, unnamed) = merge::asn_db(
+        &prepared.selected,
+        &prepared.names,
+        prepared.policy,
+        prepared.epoch,
+    );
+    eprintln!("asn: {unnamed} routes kept without a name");
+    write(asn, &out_dir.join("asn.mmdb"))?;
+
+    let started = Instant::now();
+    let (country, city, stats) = merge::location_dbs(
+        prepared.delegations,
+        prepared.assignments,
+        vec![prepared.listed, prepared.anchored],
+        prepared.epoch,
+    );
     eprintln!(
         "location: {} delegations, {} inetnum countries applied, {} ignored (not inside a delegation of their registry), {} geofeed entries, in {:.1?}",
         stats.delegations,

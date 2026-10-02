@@ -13,7 +13,7 @@ pub enum Kind {
     Asn,
 }
 
-type Interval = (u128, u128, String);
+pub type Interval = (u128, u128, String);
 type Pair = (String, String);
 type Segment = (f64, u128, u128);
 
@@ -27,7 +27,7 @@ fn address(value: u128, v4: bool) -> IpAddr {
     }
 }
 
-fn intervals(reader: &Reader<Vec<u8>>, kind: Kind, scope: IpNetwork) -> Result<Vec<Interval>> {
+pub fn intervals(reader: &Reader<Vec<u8>>, kind: Kind, scope: IpNetwork) -> Result<Vec<Interval>> {
     let mut out = Vec::new();
     for item in reader.within(scope, WithinOptions::default())? {
         let item = item?;
@@ -56,18 +56,18 @@ fn intervals(reader: &Reader<Vec<u8>>, kind: Kind, scope: IpNetwork) -> Result<V
 }
 
 #[derive(Default)]
-struct Tally {
-    agree: f64,
-    disagree: f64,
-    only_reference: f64,
-    only_ours: f64,
-    pairs: HashMap<Pair, f64>,
-    examples: HashMap<Pair, Vec<Segment>>,
-    missing: HashMap<String, f64>,
-    extra: HashMap<String, f64>,
+pub struct Tally {
+    pub agree: f64,
+    pub disagree: f64,
+    pub only_reference: f64,
+    pub only_ours: f64,
+    pub pairs: HashMap<Pair, f64>,
+    pub examples: HashMap<Pair, Vec<Segment>>,
+    pub missing: HashMap<String, f64>,
+    pub extra: HashMap<String, f64>,
 }
 
-fn sweep(ours: &[Interval], reference: &[Interval], unit: f64, only: Option<&str>) -> Tally {
+pub fn sweep(ours: &[Interval], reference: &[Interval], unit: f64, only: Option<&str>) -> Tally {
     let mut tally = Tally::default();
     let (mut i, mut j) = (0, 0);
     let mut pos: u128 = 0;

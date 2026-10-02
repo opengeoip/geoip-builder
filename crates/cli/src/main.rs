@@ -1,6 +1,7 @@
 mod arin_check;
 mod build;
 mod compare;
+mod coverage;
 mod evaluate;
 mod sources;
 
@@ -39,6 +40,16 @@ struct DataArgs {
 }
 
 impl DataArgs {
+    fn inputs(&self) -> build::Inputs<'_> {
+        build::Inputs {
+            data_dir: &self.data_dir,
+            collectors: &self.collectors,
+            vrps_url: &self.vrps_url,
+            policy: self.policy(),
+            geofeeds: &self.geofeeds,
+        }
+    }
+
     fn policy(&self) -> merge::RpkiPolicy {
         if self.rpki_valid_only {
             merge::RpkiPolicy::ValidOnly
@@ -57,6 +68,14 @@ enum Command {
     Discover {
         #[command(flatten)]
         data: DataArgs,
+    },
+    Coverage {
+        #[command(flatten)]
+        data: DataArgs,
+        #[arg(long, default_value = "out/geofeed-coverage.csv")]
+        output: PathBuf,
+        #[arg(long, default_value_t = 20)]
+        top: usize,
     },
     Build {
         #[command(flatten)]
@@ -175,25 +194,12 @@ fn main() -> Result<()> {
     match Cli::parse().command {
         Command::Fetch { data } => fetch_all(&data),
         Command::Discover { data } => build::discover(&data.data_dir, &data.geofeeds),
-        Command::Build { data, out_dir } => build::run(
-            &data.data_dir,
-            &out_dir,
-            &data.collectors,
-            &data.vrps_url,
-            data.policy(),
-            &data.geofeeds,
-        ),
+        Command::Build { data, out_dir } => build::run(&data.inputs(), &out_dir),
         Command::Run { data, out_dir } => {
             fetch_all(&data)?;
-            build::run(
-                &data.data_dir,
-                &out_dir,
-                &data.collectors,
-                &data.vrps_url,
-                data.policy(),
-                &data.geofeeds,
-            )
+            build::run(&data.inputs(), &out_dir)
         }
+        Command::Coverage { data, output, top } => coverage::run(&data.inputs(), &output, top),
         Command::Lookup {
             database,
             addresses,

@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
+csv.workspace = true
 ipnet.workspace = true
 ipnetwork.workspace = true
 maxminddb.workspace = true
