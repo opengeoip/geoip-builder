@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
-use std::net::IpAddr;
 use std::path::{Path, PathBuf};
-
-use ipnet::IpNet;
 
 use anyhow::Result;
 use maxminddb::{Reader, path};
@@ -17,7 +14,7 @@ struct Database {
     reader: Reader<Vec<u8>>,
 }
 
-fn country(reader: &Reader<Vec<u8>>, probe: &Probe) -> Result<Option<String>> {
+pub fn country(reader: &Reader<Vec<u8>>, probe: &Probe) -> Result<Option<String>> {
     Ok(reader
         .lookup(probe.address)?
         .decode_path::<String>(&path!["country", "iso_code"])?)
@@ -133,10 +130,6 @@ pub struct Options<'a> {
     pub top: usize,
 }
 
-fn single(address: IpAddr) -> IpNet {
-    IpNet::from(address)
-}
-
 pub fn run(options: &Options<'_>, paths: &[PathBuf]) -> Result<()> {
     let probes = src_atlas::parse(BufReader::new(File::open(options.truth)?))?;
     let databases: Vec<Database> = paths
@@ -151,34 +144,22 @@ pub fn run(options: &Options<'_>, paths: &[PathBuf]) -> Result<()> {
             })
         })
         .collect::<Result<_>>()?;
-    let violating = truth::violating(options.data_dir)?;
-    let anycast = truth::anycast(options.data_dir)?;
-    let (mut misplaced, mut anycasted) = (0, 0);
-    let selected: Vec<&Probe> = probes
-        .iter()
+    let probes: Vec<Probe> = probes
+        .into_iter()
         .filter(|p| options.only.is_none_or(|c| p.country == c))
-        .filter(|p| {
-            if options.keep_suspicious {
-                return true;
-            }
-            if violating.contains(&p.id) {
-                misplaced += 1;
-                return false;
-            }
-            if anycast.longest_match(single(p.address)).is_some() {
-                anycasted += 1;
-                return false;
-            }
-            true
-        })
         .collect();
-    if !options.keep_suspicious {
+    let probes = if options.keep_suspicious {
+        probes
+    } else {
+        let (kept, excluded) = truth::reliable(options.data_dir, probes)?;
         println!(
-            "excluded {misplaced} addresses of probes listed as misplaced ({} listed) and {anycasted} anycast addresses",
-            violating.len()
+            "excluded {} addresses of probes listed as misplaced ({} listed) and {} anycast addresses",
+            excluded.misplaced, excluded.listed, excluded.anycast
         );
         println!();
-    }
+        kept
+    };
+    let selected: Vec<&Probe> = probes.iter().collect();
     for (label, v4) in [("IPv4", true), ("IPv6", false)] {
         for (group, filter) in [
             ("", None),

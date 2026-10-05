@@ -23,6 +23,7 @@ target/release/geoip-builder compare --kind country out/country.mmdb GeoLite2-Co
 - `lookup` prints the network and record matching each address.
 - `evaluate` checks one or more databases against the RIPE Atlas probes: for every connected probe with a public address, the country it reports versus the country each database gives, per address family, for all probes, anchors (in datacentres) and other probes separately, with the most frequent errors and, for the first two databases, which one is right when they disagree. Probes listed as misplaced by [violating_ripe_probes](https://github.com/kizhikevich/violating_ripe_probes) and addresses inside an anycast prefix of the [LACeS census](https://github.com/ut-dacs/anycast-census) are left out, unless `--keep-suspicious` is set. `--only <country>` narrows the probes.
 - `coverage` lists, for every AS of the ASN database, the announced address space that no accepted geofeed covers, to find the networks whose geofeed is missing from the catalog. It writes a CSV (`--output`, default `out/geofeed-coverage.csv`; columns `asn`, `name`, `country`, `ipv4_announced`, `ipv4_without_geofeed`, `ipv4_share_without_geofeed`, `ipv6_announced_48`, `ipv6_without_geofeed_48`) sorted by IPv4 space without a geofeed, and prints the first `--top` (default 20).
+- `candidates` helps grow the catalog. It groups by origin AS the reliable Atlas probes that the built country database (`--country`, `--asn`) places in the wrong country, joins the share of their space without a geofeed (from `coverage`) and their website from PeeringDB, and writes them to `--output` (default `out/geofeed-candidates.csv`), most misplaced first. For the first `--probe` (default 50) of them, it tries the usual geofeed locations on that website (`/geofeed.csv`, `/geofeed`, `/geofeed.txt`, `/.well-known/geofeed`, `geofeed.<domain>`…) and reports any file that parses as an RFC 8805 geofeed of at least 10 entries; `--add` appends the new ones to the catalog as unanchored `manual` rows, whose publisher is then checked against BGP like any other.
 - `compare` measures how far a database is from a reference one, weighted by IPv4 addresses and IPv6 /48 networks, with the top disagreements and the largest ranges behind each of them. `--only <key>` (a country code, or `AS<n>`) restricts it to the ranges where either database has that value.
 
 A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 for the geofeeds. `build` takes about 50 seconds and peaks at about 1.5 GB of memory.
@@ -39,6 +40,7 @@ A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 fo
 | [RIPE Atlas probe archive](https://ftp.ripe.net/ripe/atlas/probes/archive/) of the previous day | `atlas-probes.json.bz2` | ground truth for `evaluate` |
 | [violating_ripe_probes](https://github.com/kizhikevich/violating_ripe_probes), latest list | `violating-probes.txt` | Atlas probes whose reported location is likely wrong, left out of `evaluate` |
 | [LACeS anycast census](https://github.com/ut-dacs/anycast-census), latest IPv4 and IPv6 | `anycast-ipv4.csv`, `anycast-ipv6.csv` | anycast prefixes, left out of `evaluate` |
+| [PeeringDB](https://www.peeringdb.com/) networks (`asn`, `name`, `website`, `info_type`) | `peeringdb-net.json` | websites probed by `candidates` |
 | [RFC 8805](https://www.rfc-editor.org/rfc/rfc8805) geofeeds referenced by those objects | `geofeeds/<hash>.csv` | country, region, city and postal code declared by the operator |
 | [`catalog/geofeeds.csv`](catalog/geofeeds.csv), written by `discover` and edited by hand | `geofeeds/<hash>.csv` | the list of geofeeds to crawl and their anchors |
 | ARIN NetRanges carrying a geofeed reference, compiled daily over RDAP by [geofeed-finder](https://github.com/massimocandela/geofeed-finder) and published at `geofeeds.packetvis.com` | `arin-geofeed-inetnums.json` | geofeed references for space registered at ARIN |
@@ -77,7 +79,7 @@ A geofeed can claim any prefix, so an entry is only kept when its publisher is e
 A `manual` row with a `network` anchors its geofeed on that prefix exactly like a registry reference. A `manual` row without a `network` is for an operator that publishes a geofeed without referencing it from any registry object, so that no RFC 9632 discovery finds it. Since nothing vouches for such a feed, its publisher is inferred from the data, with no per-feed configuration:
 
 - every entry is matched to the origin AS of the most specific announced route covering it (from the ASN database); entries covered by no route are dropped;
-- the AS originating the most entries of the feed is its publisher, together with every other origin AS of the feed whose name in `asn.txt` shares a distinctive word with it (generic words such as `network`, `cloud` or `inc` do not count): `AMAZON-02` and `AMAZON-EXPANSION`, or `Akamai Connected Cloud` and `AKAMAI-ASN1`;
+- the AS originating the most entries of the feed is its publisher, together with every other origin AS of the feed whose name in `asn.txt` shares a distinctive word with it (generic words such as `network`, `cloud` or `inc` do not count): `AMAZON-02` and `AMAZON-EXPANSION`, or `Akamai Connected Cloud` and `AKAMAI-ASN1`; a customer AS whose handle repeats its upstream's name (`CPC-COGENT-BLOCK` in Cogent's feed) is accepted too, which is harmless as long as it only announces that upstream's space;
 - only entries announced by the publisher are kept, so ranges a customer announces itself (bring-your-own-IP) are dropped.
 
 Unanchored geofeeds form a layer of their own, between `inetnum` countries and anchored geofeeds: an anchored geofeed always wins.
@@ -138,9 +140,9 @@ Against RIPE Atlas probes on 2026-10-02 (`evaluate`, connected probes with a pub
 
 | Database | IPv4 correct | IPv6 correct |
 |---|---|---|
-| ours | 95.13 % | 79.77 % |
+| ours | 95.34 % | 79.77 % |
 | GeoLite2 Country | 97.99 % | 80.00 % |
-| ours, anchors only | 90.94 % | 92.37 % |
+| ours, anchors only | 91.34 % | 92.37 % |
 | GeoLite2 Country, anchors only | 93.41 % | 90.15 % |
 
 Probes listed as misplaced and anycast addresses are left out. About 16 % of the IPv6 probe addresses have no answer in either database. Most of the remaining IPv4 gap comes from hosting and cloud networks that publish no geofeed (Oracle Cloud, Microsoft Azure) or leave ranges out of theirs.

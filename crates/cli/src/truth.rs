@@ -8,6 +8,7 @@ use fetch::Fetcher;
 use ipnet::IpNet;
 use model::PrefixMap;
 use serde::Deserialize;
+use src_atlas::Probe;
 
 use crate::sources;
 
@@ -39,6 +40,37 @@ pub fn violating(data_dir: &Path) -> Result<HashSet<u32>> {
         return Ok(HashSet::new());
     }
     src_atlas::parse_ids(BufReader::new(File::open(path)?))
+}
+
+pub struct Excluded {
+    pub listed: usize,
+    pub misplaced: usize,
+    pub anycast: usize,
+}
+
+pub fn reliable(data_dir: &Path, probes: Vec<Probe>) -> Result<(Vec<Probe>, Excluded)> {
+    let violating = violating(data_dir)?;
+    let anycast = anycast(data_dir)?;
+    let mut excluded = Excluded {
+        listed: violating.len(),
+        misplaced: 0,
+        anycast: 0,
+    };
+    let kept = probes
+        .into_iter()
+        .filter(|probe| {
+            if violating.contains(&probe.id) {
+                excluded.misplaced += 1;
+                false
+            } else if anycast.longest_match(IpNet::from(probe.address)).is_some() {
+                excluded.anycast += 1;
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+    Ok((kept, excluded))
 }
 
 #[derive(Deserialize)]

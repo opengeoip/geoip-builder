@@ -1,5 +1,6 @@
 mod arin_check;
 mod build;
+mod candidates;
 mod compare;
 mod coverage;
 mod evaluate;
@@ -69,6 +70,24 @@ enum Command {
     Discover {
         #[command(flatten)]
         data: DataArgs,
+    },
+    Candidates {
+        #[command(flatten)]
+        data: DataArgs,
+        #[arg(long, default_value = "data/atlas-probes.json.bz2")]
+        truth: PathBuf,
+        #[arg(long, default_value = "out/country.mmdb")]
+        country: PathBuf,
+        #[arg(long, default_value = "out/asn.mmdb")]
+        asn: PathBuf,
+        #[arg(long, default_value = "out/geofeed-coverage.csv")]
+        coverage: PathBuf,
+        #[arg(long, default_value = "out/geofeed-candidates.csv")]
+        output: PathBuf,
+        #[arg(long, default_value_t = 50)]
+        probe: usize,
+        #[arg(long)]
+        add: bool,
     },
     Coverage {
         #[command(flatten)]
@@ -206,6 +225,26 @@ fn main() -> Result<()> {
             fetch_all(&data)?;
             build::run(&data.inputs(), &out_dir)
         }
+        Command::Candidates {
+            data,
+            truth,
+            country,
+            asn,
+            coverage,
+            output,
+            probe,
+            add,
+        } => candidates::run(&candidates::Options {
+            data_dir: &data.data_dir,
+            truth: &truth,
+            country: &country,
+            asn: &asn,
+            coverage: &coverage,
+            geofeeds: &data.geofeeds,
+            output: &output,
+            probe,
+            add,
+        }),
         Command::Coverage { data, output, top } => coverage::run(&data.inputs(), &output, top),
         Command::Lookup {
             database,

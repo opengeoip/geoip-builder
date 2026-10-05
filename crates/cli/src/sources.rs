@@ -68,6 +68,13 @@ pub fn anycast(version: u8) -> Source {
     )
 }
 
+pub fn peeringdb() -> Source {
+    Source::new(
+        "peeringdb-net.json",
+        "https://www.peeringdb.com/api/net?fields=asn,name,website,info_type",
+    )
+}
+
 pub fn vrps(url: &str) -> Source {
     Source::new("vrps.json", url)
 }
@@ -125,6 +132,7 @@ pub fn all(collectors: &[String], vrps_url: &str) -> Vec<Source> {
     sources.extend(rpsl().into_iter().map(|(source, _)| source));
     sources.push(arin_geofeed_inetnums());
     sources.push(atlas());
+    sources.push(peeringdb());
     sources.push(anycast(4));
     sources.push(anycast(6));
     sources.push(violating_probes_index());
