@@ -3,7 +3,6 @@ mod build;
 mod compare;
 mod coverage;
 mod evaluate;
-mod latency;
 mod sources;
 mod truth;
 
@@ -70,16 +69,6 @@ enum Command {
     Discover {
         #[command(flatten)]
         data: DataArgs,
-    },
-    FetchLatency {
-        #[arg(long, default_value = "data")]
-        data_dir: PathBuf,
-        #[arg(long, default_value_t = 4.0)]
-        rate: f64,
-        #[arg(long, default_value_t = 6)]
-        workers: usize,
-        #[arg(long)]
-        max: Option<usize>,
     },
     Coverage {
         #[command(flatten)]
@@ -239,12 +228,6 @@ fn main() -> Result<()> {
             },
             &databases,
         ),
-        Command::FetchLatency {
-            data_dir,
-            rate,
-            workers,
-            max,
-        } => latency::run_fetch(&data_dir, rate, workers, max),
         Command::Compare {
             kind,
             top,

@@ -68,8 +68,6 @@ pub fn anycast(version: u8) -> Source {
     )
 }
 
-pub const WHEREIS_TAG: &str = "neo-ip-20241018";
-
 pub fn vrps(url: &str) -> Source {
     Source::new("vrps.json", url)
 }

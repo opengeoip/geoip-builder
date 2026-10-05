@@ -13,7 +13,7 @@ use src_rpki::Validator;
 
 use src_geofeed::list;
 
-use crate::{latency, sources};
+use crate::sources;
 
 fn open(dir: &Path, source: &fetch::Source) -> Result<Box<dyn BufRead>> {
     let path = source.path(dir);
@@ -121,7 +121,6 @@ pub struct Prepared {
     pub selected: Vec<merge::SelectedRoute>,
     pub delegations: Vec<Delegation>,
     pub assignments: Vec<Assignment>,
-    pub latency: Vec<Location>,
     pub listed: Vec<Location>,
     pub anchored: Vec<Location>,
 }
@@ -230,16 +229,8 @@ pub fn prepare(inputs: &Inputs<'_>) -> Result<Prepared> {
         );
     }
 
-    let measurements = latency::measurements(data_dir)?;
-    let (latency, stats) = merge::locate_by_latency(&measurements, merge::LatencyRule::default());
-    eprintln!(
-        "latency: {} measurements, {} too large to stand for one address, {} answered, {} prefixes located",
-        stats.measurements, stats.too_large, stats.answered, stats.located
-    );
-
     Ok(Prepared {
         epoch,
-        latency,
         policy: inputs.policy,
         names,
         selected,
@@ -266,7 +257,7 @@ pub fn run(inputs: &Inputs<'_>, out_dir: &Path) -> Result<()> {
     let (country, city, stats) = merge::location_dbs(
         prepared.delegations,
         prepared.assignments,
-        vec![prepared.latency, prepared.listed, prepared.anchored],
+        vec![prepared.listed, prepared.anchored],
         prepared.epoch,
     );
     eprintln!(
