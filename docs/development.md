@@ -51,7 +51,7 @@ The image is based on distroless `static` (non-root) and runs in `/work`, where 
 docker run --rm -v "$PWD/data:/work/data" -v "$PWD/out:/work/out" ghcr.io/opengeoip/geoip-builder run
 ```
 
-release-plz authenticates with a GitHub App of the organisation, so that its pull requests run the CI and its releases trigger the release workflow. The App needs the *Contents* and *Pull requests* repository permissions (read and write) and must be installed on the repository; its ID is the `RELEASE_APP_ID` variable and its private key the `RELEASE_APP_PRIVATE_KEY` secret of the `release` environment, restricted to `main`. Until `RELEASE_APP_ID` is set, the release jobs are skipped.
+release-plz authenticates with a GitHub App of the organisation, so that its pull requests run the CI and its releases trigger the release workflow. The App needs the *Contents* and *Pull requests* repository permissions (read and write) and must be installed on the repository; its client ID is the `RELEASE_APP_CLIENT_ID` variable and its private key the `RELEASE_APP_PRIVATE_KEY` secret of the `release` environment, restricted to `main`. Until `RELEASE_APP_CLIENT_ID` is set, the release jobs are skipped.
 
 ## Dependency updates
 
