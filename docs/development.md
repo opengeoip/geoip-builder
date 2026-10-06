@@ -43,7 +43,7 @@ Releases are driven by [release-plz](https://release-plz.dev/), configured in `r
 
 1. every push to `main` updates a release pull request that bumps the workspace version from the Conventional Commits since the last tag and updates `CHANGELOG.md`;
 2. merging that pull request creates the `vX.Y.Z` tag and the GitHub release;
-3. the same workflow then calls `.github/workflows/release.yml`, which builds static binaries for `x86_64` and `aarch64` (musl), attaches them to the release with a `SHA256SUMS` file and build provenance attestations, and publishes a multi-architecture image to `ghcr.io/opengeoip/geoip-builder` (tags `X.Y.Z`, `X.Y` and `latest`), also attested.
+3. the release then triggers `.github/workflows/release.yml`, which builds static binaries for `x86_64` and `aarch64` (musl), attaches them to the release with a `SHA256SUMS` file and build provenance attestations, and publishes a multi-architecture image to `ghcr.io/opengeoip/geoip-builder` (tags `X.Y.Z`, `X.Y` and `latest`), also attested.
 
 The image is based on distroless `static` (non-root) and runs in `/work`, where the geofeed catalog is installed; mount a volume on `/work/data` and `/work/out`:
 
@@ -51,7 +51,7 @@ The image is based on distroless `static` (non-root) and runs in `/work`, where 
 docker run --rm -v "$PWD/data:/work/data" -v "$PWD/out:/work/out" ghcr.io/opengeoip/geoip-builder run
 ```
 
-release-plz runs with the workflow's own `GITHUB_TOKEN`, which cannot trigger other workflows through pull request or release events. The release workflow therefore dispatches the CI on the release pull request branch itself, so that its `CI result` check appears, and calls `release.yml` directly once the tag is created. `release.yml` can also be run by hand for an existing tag (*Actions → Release → Run workflow*). The repository allows GitHub Actions to create pull requests; no other credential is needed.
+release-plz authenticates as `opengeoip-bot`, the GitHub App of the organisation, so that its release pull requests run the whole CI and its releases trigger `release.yml`. The App has the *Contents* and *Pull requests* permissions (read and write) and is installed on the repository; its client ID is the `BOT_CLIENT_ID` organisation variable and its private key the `BOT_PRIVATE_KEY` secret of the repository's `release` environment, which only `main` can use. Each job requests a token limited to the permissions it needs. `release.yml` can also be run by hand for an existing tag (*Actions → Release → Run workflow*).
 
 ## Dependency updates
 
