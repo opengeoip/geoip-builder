@@ -13,10 +13,12 @@ release = true
 changelog_update = true
 changelog_path = "CHANGELOG.md"
 changelog_include = [
+    "analysis",
     "fetch",
     "merge",
     "mmdb-writer",
     "model",
+    "pipeline",
     "src-arin",
     "src-asnames",
     "src-atlas",

@@ -13,7 +13,7 @@ cargo fmt --check
 
 | Crate | Role |
 |---|---|
-| `model` | shared types (registries, delegations, AS names, VRPs, routes, locations), longest-prefix map and special-purpose ranges |
+| `model` | shared types (registries, delegations, AS names, VRPs, routes, locations), longest-prefix map, special-purpose ranges, FNV-1a hashing and date helpers |
 | `fetch` | cached HTTP downloads with their metadata (`<file>.meta.json`) |
 | `src-delegated` | parser for the RIR delegated-extended files |
 | `src-asnames` | parser for `asn.txt` |
@@ -25,7 +25,9 @@ cargo fmt --check
 | `src-atlas` | reader for the RIPE Atlas probe archive |
 | `mmdb-writer` | MaxMind DB writer |
 | `merge` | origin selection, geofeed authorization, and the country, city and ASN databases |
-| `cli` | the `geoip-builder` binary |
+| `analysis` | pure computations behind `compare`, `coverage`, `evaluate` and `candidates`: interval sweeps, per-AS coverage, scores, rankings and geofeed URL guesses |
+| `pipeline` | the source catalogue and the `fetch`, `discover`, `build`, `coverage` and `candidates` workflows, split into stages that report their progress through a callback |
+| `cli` | the `geoip-builder` binary: arguments, reading the inputs and printing the reports |
 
 The code carries no comments: explanations live in these documents.
 

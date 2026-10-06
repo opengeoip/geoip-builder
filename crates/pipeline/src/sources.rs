@@ -1,7 +1,6 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use fetch::Source;
 use model::Registry;
+use model::date::{civil_from_days, today};
 
 pub const DEFAULT_VRPS_URL: &str = "https://console.rpki-client.org/vrps.json";
 
@@ -19,15 +18,8 @@ pub fn delegated(registry: Registry) -> Source {
     )
 }
 
-pub fn today() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() / 86_400)
-        .unwrap_or_default()
-}
-
 pub fn atlas() -> Source {
-    let (year, month, day) = src_atlas::civil_from_days(today() as i64 - 1);
+    let (year, month, day) = civil_from_days(today() as i64 - 1);
     Source::new(
         "atlas-probes.json.bz2",
         src_atlas::archive_url(year, month, day),

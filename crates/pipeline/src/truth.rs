@@ -10,14 +10,14 @@ use model::PrefixMap;
 use serde::Deserialize;
 use src_atlas::Probe;
 
-use crate::sources;
+use crate::{Log, sources};
 
 #[derive(Deserialize)]
 struct Entry {
     name: String,
 }
 
-pub fn fetch_violating(fetcher: &Fetcher) -> Result<()> {
+pub fn fetch_violating(fetcher: &Fetcher, log: &mut Log<'_>) -> Result<()> {
     let index = sources::violating_probes_index();
     let entries: Vec<Entry> =
         serde_json::from_reader(BufReader::new(File::open(index.path(fetcher.dir()))?))
@@ -30,7 +30,7 @@ pub fn fetch_violating(fetcher: &Fetcher) -> Result<()> {
         .context("no probe list in the index")?;
     let source = sources::violating_probes(latest);
     fetcher.fetch(&source)?;
-    eprintln!("{}: {latest}", source.name);
+    log(format!("{}: {latest}", source.name));
     Ok(())
 }
 
