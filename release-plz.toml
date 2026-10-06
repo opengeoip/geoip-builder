@@ -5,6 +5,7 @@ semver_check = false
 changelog_update = false
 git_release_enable = false
 git_tag_enable = false
+git_tag_name = "{{ package }}-v{{ version }}"
 pr_labels = ["release"]
 
 [[package]]
