@@ -6,6 +6,7 @@ members = ["crates/*"]
 edition = "2024"
 version = "0.1.0"
 publish = false
+license = "GPL-3.0-or-later"
 
 [workspace.dependencies]
 anyhow = "1.0.104"
