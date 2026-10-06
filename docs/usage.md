@@ -1,24 +1,57 @@
 # Usage
 
+## Building the databases
+
 ```sh
-geoip-builder run --data-dir data --out-dir out
-geoip-builder lookup out/asn.mmdb 1.1.1.1 2a01:cb00::1
+geoip-builder run                 # fetch, then build
+geoip-builder fetch               # download every source into data/
+geoip-builder discover            # refresh catalog/geofeeds.csv from the registries
+geoip-builder build               # write out/country.mmdb, city.mmdb and asn.mmdb
+```
+
+`fetch` downloads the bulk sources, runs `discover`, then downloads every geofeed in the catalog. It uses conditional requests, so a run where nothing changed is quick. When a download fails, the previous copy is kept and `fetch` exits with an error at the end. Failed geofeeds are listed in `data/geofeeds/failures.tsv`.
+
+`build` never touches the network: it can be replayed on a saved data directory.
+
+A first `fetch` takes about 8 minutes for about 900 MB. `build` takes about 50 seconds and up to 1.5 GB of memory.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--data-dir` | `data` | where sources are downloaded |
+| `--out-dir` | `out` | where databases are written (`build`, `run`) |
+| `--geofeeds` | `catalog/geofeeds.csv` | the geofeed catalog |
+| `--collector` | `rrc00` | RIPE RIS collector to use, repeatable |
+| `--vrps-url` | rpki-client export | RPKI data, for example from a local Routinator |
+| `--rpki-valid-only` | off | keep only RPKI-valid routes in the ASN database |
+| `--geofeed-workers` | `32` | geofeed hosts crawled in parallel |
+| `--arin-check-sample` | `10` | ARIN records double-checked over RDAP on each `fetch` |
+
+## Looking up addresses
+
+```sh
+geoip-builder lookup out/city.mmdb 1.1.1.1 2a01:cb00::1
+```
+
+Prints the matching network and record for each address.
+
+## Measuring accuracy
+
+```sh
+geoip-builder evaluate out/country.mmdb GeoLite2-Country.mmdb
 geoip-builder compare --kind country out/country.mmdb GeoLite2-Country.mmdb
 ```
 
-- `fetch` downloads every source into `--data-dir`, runs `discover`, then downloads every geofeed of the catalog into `--data-dir/geofeeds`, with conditional requests (`If-None-Match`, `If-Modified-Since`), so running it often costs little when nothing changed. Failed geofeeds are listed in `geofeeds/failures.tsv` and keep their previous copy, if any.
-- `discover` reads the RPSL dumps and the ARIN NetRanges already in `--data-dir` and rewrites the geofeed catalog (`--geofeeds`, default `catalog/geofeeds.csv`) with every geofeed reference they contain, keeping the rows added by hand.
-- `build` reads only `--data-dir` and the geofeed catalog and writes `country.mmdb`, `city.mmdb` and `asn.mmdb` into `--out-dir`. A build never touches the network, so it can be replayed on a saved data directory.
-- `run` is `fetch` followed by `build`.
-- `--rpki-valid-only` restricts the ASN database to RPKI-valid routes (see [databases](databases.md)).
-- a source that fails to download keeps its previous copy; `fetch` reports it and exits with an error once everything else is done.
-- `--geofeeds` (default `catalog/geofeeds.csv`) is the geofeed catalog (see [databases](databases.md)).
-- `--geofeed-workers` (default 32) sets how many hosts are crawled in parallel; the URLs of one host are fetched one after the other, 500 ms apart, with one retry after a `429`.
-- `--collector` (repeatable, default `rrc00`) selects the RIPE RIS collectors whose RIB dumps are used. `--vrps-url` points to another VRP export, such as a local Routinator.
-- `lookup` prints the network and record matching each address.
-- `evaluate` checks one or more databases against the RIPE Atlas probes: for every connected probe with a public address, the country it reports versus the country each database gives, per address family, for all probes, anchors (in datacentres) and other probes separately, with the most frequent errors and, for the first two databases, which one is right when they disagree. Probes listed as misplaced by [violating_ripe_probes](https://github.com/kizhikevich/violating_ripe_probes) and addresses inside an anycast prefix of the [LACeS census](https://github.com/ut-dacs/anycast-census) are left out, unless `--keep-suspicious` is set. `--only <country>` narrows the probes.
-- `coverage` lists, for every AS of the ASN database, the announced address space that no accepted geofeed covers, to find the networks whose geofeed is missing from the catalog. It writes a CSV (`--output`, default `out/geofeed-coverage.csv`; columns `asn`, `name`, `country`, `ipv4_announced`, `ipv4_without_geofeed`, `ipv4_share_without_geofeed`, `ipv6_announced_48`, `ipv6_without_geofeed_48`) sorted by IPv4 space without a geofeed, and prints the first `--top` (default 20).
-- `candidates` helps grow the catalog. It groups by origin AS the reliable Atlas probes that the built country database (`--country`, `--asn`) places in the wrong country, joins the share of their space without a geofeed (from `coverage`) and their website from PeeringDB, and writes them to `--output` (default `out/geofeed-candidates.csv`), most misplaced first. For the first `--probe` (default 50) of them, it tries the usual geofeed locations on that website (`/geofeed.csv`, `/geofeed`, `/geofeed.txt`, `/.well-known/geofeed`, `geofeed.<domain>`…) and reports any file that parses as an RFC 8805 geofeed of at least 10 entries; `--add` appends the new ones to the catalog as unanchored `manual` rows, whose publisher is then checked against BGP like any other.
-- `compare` measures how far a database is from a reference one, weighted by IPv4 addresses and IPv6 /48 networks, with the top disagreements and the largest ranges behind each of them. `--only <key>` (a country code, or `AS<n>`) restricts it to the ranges where either database has that value.
+`evaluate` checks databases against the countries reported by RIPE Atlas probes, for IPv4 and IPv6, for all probes, anchors (datacentres) and home probes. It lists the most frequent errors and, for two databases, which one is right when they disagree. Probes known to report a wrong location and anycast addresses are left out, unless `--keep-suspicious` is set. `--only FR` limits it to one country, `--top` sets how many errors are listed.
 
-A first `fetch` takes about 8 minutes: 5 for the bulk files (about 900 MB), 3 for the geofeeds. `build` takes about 50 seconds and peaks at about 1.5 GB of memory.
+`compare` measures how much two databases agree, weighted by IPv4 addresses and IPv6 /48s. It lists the largest disagreements and the ranges behind them. `--only FR` or `--only AS3215` limits it to one country or AS.
+
+## Finding missing geofeeds
+
+```sh
+geoip-builder coverage
+geoip-builder candidates --add
+```
+
+`coverage` writes `out/geofeed-coverage.csv`: for each AS, how much of its announced space no geofeed covers.
+
+`candidates` lists, AS by AS, the Atlas probes the country database gets wrong, with the network's website from PeeringDB, in `out/geofeed-candidates.csv`. For the first 50 (`--probe`), it tries the usual geofeed locations on the website, such as `/geofeed.csv` or `geofeed.<domain>`. `--add` appends the geofeeds it finds to the catalog.
