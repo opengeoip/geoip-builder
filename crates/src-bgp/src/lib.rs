@@ -79,7 +79,7 @@ impl RibCollector {
                 Route { prefix, origins }
             })
             .collect();
-        routes.sort_by(|a, b| a.prefix.cmp(&b.prefix));
+        routes.sort_by_key(|a| a.prefix);
         routes
     }
 }
