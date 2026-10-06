@@ -1,19 +1,27 @@
 name: Release
 
 on:
-  release:
-    types:
-      - published
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build, such as v0.1.0
+        type: string
+        required: true
 
 permissions: {}
 
 concurrency:
-  group: release-${{ github.event.release.tag_name }}
+  group: release-${{ inputs.tag }}
   cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
-  TAG: ${{ github.event.release.tag_name }}
+  TAG: ${{ inputs.tag }}
 
 jobs:
   binaries:

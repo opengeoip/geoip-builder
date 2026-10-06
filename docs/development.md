@@ -43,7 +43,7 @@ Releases are driven by [release-plz](https://release-plz.dev/), configured in `r
 
 1. every push to `main` updates a release pull request that bumps the workspace version from the Conventional Commits since the last tag and updates `CHANGELOG.md`;
 2. merging that pull request creates the `vX.Y.Z` tag and the GitHub release;
-3. `.github/workflows/release.yml` then builds static binaries for `x86_64` and `aarch64` (musl), attaches them to the release with a `SHA256SUMS` file and build provenance attestations, and publishes a multi-architecture image to `ghcr.io/opengeoip/geoip-builder` (tags `X.Y.Z`, `X.Y` and `latest`), also attested.
+3. the same workflow then calls `.github/workflows/release.yml`, which builds static binaries for `x86_64` and `aarch64` (musl), attaches them to the release with a `SHA256SUMS` file and build provenance attestations, and publishes a multi-architecture image to `ghcr.io/opengeoip/geoip-builder` (tags `X.Y.Z`, `X.Y` and `latest`), also attested.
 
 The image is based on distroless `static` (non-root) and runs in `/work`, where the geofeed catalog is installed; mount a volume on `/work/data` and `/work/out`:
 
@@ -51,7 +51,7 @@ The image is based on distroless `static` (non-root) and runs in `/work`, where 
 docker run --rm -v "$PWD/data:/work/data" -v "$PWD/out:/work/out" ghcr.io/opengeoip/geoip-builder run
 ```
 
-release-plz authenticates with a GitHub App of the organisation, so that its pull requests run the CI and its releases trigger the release workflow. The App needs the *Contents* and *Pull requests* repository permissions (read and write) and must be installed on the repository; its client ID is the `RELEASE_APP_CLIENT_ID` variable and its private key the `RELEASE_APP_PRIVATE_KEY` secret of the `release` environment, restricted to `main`. Until `RELEASE_APP_CLIENT_ID` is set, the release jobs are skipped.
+release-plz runs with the workflow's own `GITHUB_TOKEN`, which cannot trigger other workflows through pull request or release events. The release workflow therefore dispatches the CI on the release pull request branch itself, so that its `CI result` check appears, and calls `release.yml` directly once the tag is created. `release.yml` can also be run by hand for an existing tag (*Actions → Release → Run workflow*). The repository allows GitHub Actions to create pull requests; no other credential is needed.
 
 ## Dependency updates
 
