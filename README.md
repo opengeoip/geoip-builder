@@ -13,7 +13,7 @@ The build needs a Rust toolchain; on Debian or Ubuntu:
 
 ```sh
 sudo apt install cargo
-git clone <repository> geoip-builder
+git clone https://github.com/opengeoip/geoip-builder.git
 cd geoip-builder
 cargo build --release
 ```
