@@ -1,5 +1,9 @@
 # geoip-builder
 
+[![CI](https://github.com/opengeoip/geoip-builder/actions/workflows/ci.yml/badge.svg)](https://github.com/opengeoip/geoip-builder/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/opengeoip/geoip-builder)](https://github.com/opengeoip/geoip-builder/releases)
+[![License](https://img.shields.io/github/license/opengeoip/geoip-builder)](LICENSE)
+
 geoip-builder builds IP geolocation and ASN databases in the [MaxMind DB](https://maxmind.github.io/MaxMind-DB/) format, compatible with the GeoLite2 Country, City and ASN schemas, from public bulk data only: RIR statistics and databases, BGP routing tables, RPKI and the geofeeds operators publish ([RFC 8805](https://www.rfc-editor.org/rfc/rfc8805), [RFC 9632](https://www.rfc-editor.org/rfc/rfc9632)). It uses no WHOIS, no rate-limited API and no commercial database, and can be rebuilt as often as needed.
 
 - `country.mmdb`, `city.mmdb` and `asn.mmdb`, readable by any MaxMind DB library;
@@ -18,7 +22,7 @@ cd geoip-builder
 cargo build --release
 ```
 
-The binary is `target/release/geoip-builder`.
+The binary is `target/release/geoip-builder`. Static Linux binaries and a container image (`ghcr.io/opengeoip/geoip-builder`) are also attached to every [release](https://github.com/opengeoip/geoip-builder/releases).
 
 ## Quick start
 

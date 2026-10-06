@@ -7,6 +7,8 @@ edition = "2024"
 version = "0.1.0"
 publish = false
 license = "GPL-3.0-or-later"
+repository = "https://github.com/opengeoip/geoip-builder"
+rust-version = "1.88"
 
 [workspace.dependencies]
 anyhow = "1.0.104"
