@@ -1,0 +1,32 @@
+[workspace]
+git_only = true
+release = false
+semver_check = false
+changelog_update = false
+git_release_enable = false
+git_tag_enable = false
+pr_labels = ["release"]
+
+[[package]]
+name = "cli"
+release = true
+changelog_update = true
+changelog_path = "CHANGELOG.md"
+changelog_include = [
+    "fetch",
+    "merge",
+    "mmdb-writer",
+    "model",
+    "src-arin",
+    "src-asnames",
+    "src-atlas",
+    "src-bgp",
+    "src-delegated",
+    "src-geofeed",
+    "src-rpki",
+    "src-rpsl",
+]
+git_tag_enable = true
+git_tag_name = "v{{ version }}"
+git_release_enable = true
+git_release_name = "v{{ version }}"
