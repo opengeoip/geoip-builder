@@ -4,16 +4,15 @@
 [![Release](https://img.shields.io/github/v/release/opengeoip/geoip-builder)](https://github.com/opengeoip/geoip-builder/releases)
 [![License](https://img.shields.io/github/license/opengeoip/geoip-builder)](LICENSE)
 
-geoip-builder builds IP geolocation and ASN databases in the [MaxMind DB](https://maxmind.github.io/MaxMind-DB/) format, compatible with the GeoLite2 Country, City and ASN schemas, from public bulk data only: RIR statistics and databases, BGP routing tables, RPKI and the geofeeds operators publish ([RFC 8805](https://www.rfc-editor.org/rfc/rfc8805), [RFC 9632](https://www.rfc-editor.org/rfc/rfc9632)). It uses no WHOIS, no rate-limited API and no commercial database, and can be rebuilt as often as needed.
+geoip-builder builds IP geolocation and ASN databases from public data only, as `.mmdb` files that any MaxMind DB library can read. They follow the GeoLite2 Country, City and ASN schemas, so they work as drop-in replacements.
 
-- `country.mmdb`, `city.mmdb` and `asn.mmdb`, readable by any MaxMind DB library;
-- country from the registries, refined by sub-allocations and by operators' geofeeds;
-- origin AS from BGP, with RPKI-invalid routes excluded;
-- a versioned catalog of the geofeeds in use, and tools to measure accuracy and find missing geofeeds.
+- **Country and city** come from the internet registries, refined by the geofeeds operators publish ([RFC 8805](https://www.rfc-editor.org/rfc/rfc8805)).
+- **ASN** comes from BGP routing tables, with RPKI-invalid routes left out.
+- **No WHOIS, no rate-limited API, no commercial data**: the databases can be rebuilt every day.
 
-## Installation
+## Install
 
-The build needs a Rust toolchain; on Debian or Ubuntu:
+Download a static Linux binary from the [releases](https://github.com/opengeoip/geoip-builder/releases), use the container image, or build from source:
 
 ```sh
 sudo apt install cargo
@@ -22,28 +21,27 @@ cd geoip-builder
 cargo build --release
 ```
 
-The binary is `target/release/geoip-builder`. Static Linux binaries and a container image (`ghcr.io/opengeoip/geoip-builder`) are also attached to every [release](https://github.com/opengeoip/geoip-builder/releases).
+```sh
+docker run --rm -v "$PWD/data:/work/data" -v "$PWD/out:/work/out" ghcr.io/opengeoip/geoip-builder run
+```
 
 ## Quick start
 
 ```sh
-geoip-builder run --data-dir data --out-dir out
+geoip-builder run
 geoip-builder lookup out/country.mmdb 1.1.1.1
-geoip-builder lookup out/asn.mmdb 2a01:cb00::1
 ```
 
-The first run downloads about 1 GB of public data and takes about 10 minutes.
+The first run downloads about 1 GB and takes about 10 minutes. The databases land in `out/`.
 
 ## Documentation
 
 - [Usage](docs/usage.md): commands and options
-- [Sources](docs/sources.md): the data used and where it comes from
-- [Databases](docs/databases.md): how each database is built
-- [Evaluation](docs/evaluation.md): accuracy measurements
-- [Development](docs/development.md): code layout and checks
+- [Sources](docs/sources.md): where the data comes from
+- [How it works](docs/databases.md): how each database is built
+- [Accuracy](docs/evaluation.md): how it compares to GeoLite2
+- [Development](docs/development.md): code, CI and releases
 
 ## License
 
-geoip-builder, including its geofeed catalog, is free software under the [GNU General Public License](LICENSE), version 3 or any later version.
-
-The databases it builds are derived from third-party data, each under its own terms of use (RIR statistics and databases, RIPE RIS, RPKI repositories, PeeringDB, RIPE Atlas, operators' geofeeds): check them before redistributing the generated files.
+GPL-3.0-or-later, see [LICENSE](LICENSE). The generated databases derive from third-party data with their own terms of use (registries, RIPE RIS and Atlas, RPKI, PeeringDB, operators' geofeeds): check them before redistributing the files.

@@ -75,12 +75,7 @@ fn parse_line(line: &str) -> Option<Location> {
 }
 
 pub fn cache_name(url: &str) -> String {
-    let mut hash: u64 = 0xcbf29ce484222325;
-    for byte in url.bytes() {
-        hash ^= u64::from(byte);
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    format!("{hash:016x}.csv")
+    format!("{:016x}.csv", model::hash::fnv1a(0, url.as_bytes()))
 }
 
 pub fn source(url: &str) -> Source {

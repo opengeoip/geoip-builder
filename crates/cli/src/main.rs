@@ -1,20 +1,20 @@
-mod arin_check;
-mod build;
 mod candidates;
 mod compare;
 mod coverage;
 mod evaluate;
-mod sources;
-mod truth;
 
-use std::fs;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
-use fetch::{Fetcher, Outcome};
+use pipeline::build::Inputs;
+use pipeline::fetch::FetchOptions;
+use pipeline::sources;
+
+pub fn log(line: String) {
+    eprintln!("{line}");
+}
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -42,13 +42,24 @@ struct DataArgs {
 }
 
 impl DataArgs {
-    fn inputs(&self) -> build::Inputs<'_> {
-        build::Inputs {
+    fn inputs(&self) -> Inputs<'_> {
+        Inputs {
             data_dir: &self.data_dir,
             collectors: &self.collectors,
             vrps_url: &self.vrps_url,
             policy: self.policy(),
             geofeeds: &self.geofeeds,
+        }
+    }
+
+    fn fetch(&self) -> FetchOptions<'_> {
+        FetchOptions {
+            data_dir: &self.data_dir,
+            collectors: &self.collectors,
+            vrps_url: &self.vrps_url,
+            geofeeds: &self.geofeeds,
+            geofeed_workers: self.geofeed_workers,
+            arin_check_sample: self.arin_check_sample,
         }
     }
 
@@ -129,7 +140,7 @@ enum Command {
     },
     Compare {
         #[arg(long, value_enum)]
-        kind: compare::Kind,
+        kind: compare::KindArg,
         #[arg(long, default_value_t = 15)]
         top: usize,
         #[arg(long)]
@@ -137,69 +148,6 @@ enum Command {
         ours: PathBuf,
         reference: PathBuf,
     },
-}
-
-fn fetch_all(data: &DataArgs) -> Result<()> {
-    let fetcher = Fetcher::new(&data.data_dir)?;
-    let mut failed = Vec::new();
-    for source in sources::all(&data.collectors, &data.vrps_url) {
-        match fetcher.fetch(&source) {
-            Ok(Outcome::Downloaded(size)) => eprintln!("{}: downloaded {size} bytes", source.name),
-            Ok(Outcome::NotModified) => eprintln!("{}: not modified", source.name),
-            Err(error) => {
-                eprintln!(
-                    "{}: failed, keeping the previous copy: {error:#}",
-                    source.name
-                );
-                failed.push(source.name);
-            }
-        }
-    }
-
-    if let Err(error) = truth::fetch_violating(&fetcher) {
-        eprintln!("violating probes: skipped: {error:#}");
-    }
-
-    if let Err(error) = arin_check::run(
-        &data.data_dir,
-        data.arin_check_sample,
-        Duration::from_secs(1),
-    ) {
-        eprintln!("arin check: skipped: {error:#}");
-    }
-
-    build::discover(&data.data_dir, &data.geofeeds)?;
-    let urls = build::geofeed_urls(&src_geofeed::list::read(&data.geofeeds)?);
-    let dir = build::geofeed_dir(&data.data_dir);
-    let fetcher = Fetcher::with_options(
-        &dir,
-        fetch::Options {
-            connect_timeout: Duration::from_secs(10),
-            global_timeout: Some(Duration::from_secs(120)),
-            max_size: 256 << 20,
-            verify_tls: false,
-        },
-    )?;
-    let started = Instant::now();
-    let stats = src_geofeed::crawl(&fetcher, &urls, data.geofeed_workers);
-    eprintln!(
-        "geofeeds: {} URLs, {} downloaded, {} not modified, {} failed, in {:.1?}",
-        urls.len(),
-        stats.downloaded,
-        stats.not_modified,
-        stats.failures.len(),
-        started.elapsed()
-    );
-    let report: String = stats
-        .failures
-        .iter()
-        .map(|(url, error)| format!("{url}\t{error}\n"))
-        .collect();
-    fs::write(dir.join("failures.tsv"), report)?;
-    if !failed.is_empty() {
-        anyhow::bail!("{} sources failed: {}", failed.len(), failed.join(", "));
-    }
-    Ok(())
 }
 
 fn lookup(database: PathBuf, addresses: Vec<IpAddr>) -> Result<()> {
@@ -218,12 +166,16 @@ fn lookup(database: PathBuf, addresses: Vec<IpAddr>) -> Result<()> {
 
 fn main() -> Result<()> {
     match Cli::parse().command {
-        Command::Fetch { data } => fetch_all(&data),
-        Command::Discover { data } => build::discover(&data.data_dir, &data.geofeeds),
-        Command::Build { data, out_dir } => build::run(&data.inputs(), &out_dir),
+        Command::Fetch { data } => pipeline::fetch::fetch(&data.fetch(), &mut log),
+        Command::Discover { data } => {
+            pipeline::catalog::discover(&data.data_dir, &data.geofeeds, &mut log)
+        }
+        Command::Build { data, out_dir } => {
+            pipeline::build::build(&data.inputs(), &out_dir, &mut log)
+        }
         Command::Run { data, out_dir } => {
-            fetch_all(&data)?;
-            build::run(&data.inputs(), &out_dir)
+            pipeline::fetch::fetch(&data.fetch(), &mut log)?;
+            pipeline::build::build(&data.inputs(), &out_dir, &mut log)
         }
         Command::Candidates {
             data,
@@ -234,17 +186,19 @@ fn main() -> Result<()> {
             output,
             probe,
             add,
-        } => candidates::run(&candidates::Options {
-            data_dir: &data.data_dir,
-            truth: &truth,
-            country: &country,
-            asn: &asn,
-            coverage: &coverage,
-            geofeeds: &data.geofeeds,
-            output: &output,
-            probe,
+        } => candidates::run(
+            &pipeline::candidates::Options {
+                data_dir: &data.data_dir,
+                truth: &truth,
+                country: &country,
+                asn: &asn,
+                coverage: &coverage,
+                geofeeds: &data.geofeeds,
+                probe,
+            },
+            &output,
             add,
-        }),
+        ),
         Command::Coverage { data, output, top } => coverage::run(&data.inputs(), &output, top),
         Command::Lookup {
             database,

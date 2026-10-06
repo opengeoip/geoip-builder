@@ -1,5 +1,5 @@
 [package]
-name = "cli"
+name = "pipeline"
 edition.workspace = true
 version.workspace = true
 publish.workspace = true
@@ -7,17 +7,24 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
-[[bin]]
-name = "geoip-builder"
-path = "src/main.rs"
-
 [dependencies]
 analysis.workspace = true
 anyhow.workspace = true
-clap.workspace = true
 csv.workspace = true
+fetch.workspace = true
+flate2.workspace = true
+ipnet.workspace = true
 maxminddb.workspace = true
 merge.workspace = true
-pipeline.workspace = true
+mmdb-writer.workspace = true
+model.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+src-arin.workspace = true
+src-asnames.workspace = true
 src-atlas.workspace = true
+src-bgp.workspace = true
+src-delegated.workspace = true
+src-geofeed.workspace = true
+src-rpki.workspace = true
+src-rpsl.workspace = true
