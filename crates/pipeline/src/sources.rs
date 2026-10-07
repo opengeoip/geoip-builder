@@ -30,6 +30,21 @@ pub fn asnames() -> Source {
     Source::new("asn.txt", "https://ftp.ripe.net/ripe/asnames/asn.txt")
 }
 
+pub const CATALOG_URL: &str =
+    "https://github.com/opengeoip/geofeeds/releases/latest/download/geofeeds.csv";
+
+pub fn catalog(url: &str) -> Source {
+    Source::new("geofeeds-catalog.csv", url)
+}
+
+pub fn registries() -> Vec<Source> {
+    rpsl()
+        .into_iter()
+        .map(|(source, _)| source)
+        .chain([arin_geofeed_inetnums()])
+        .collect()
+}
+
 pub fn arin_geofeed_inetnums() -> Source {
     Source::new(
         "arin-geofeed-inetnums.json",

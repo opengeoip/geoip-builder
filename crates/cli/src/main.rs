@@ -4,7 +4,7 @@ mod coverage;
 mod evaluate;
 
 use std::net::IpAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
@@ -37,18 +37,22 @@ struct DataArgs {
     geofeed_workers: usize,
     #[arg(long, default_value_t = 10)]
     arin_check_sample: usize,
-    #[arg(long, default_value = "catalog/geofeeds.csv")]
-    geofeeds: PathBuf,
+    #[arg(long, default_value = sources::CATALOG_URL)]
+    geofeeds: String,
 }
 
 impl DataArgs {
-    fn inputs(&self) -> Inputs<'_> {
+    fn catalog(&self) -> PathBuf {
+        pipeline::catalog::path(&self.data_dir, &self.geofeeds)
+    }
+
+    fn inputs<'a>(&'a self, catalog: &'a Path) -> Inputs<'a> {
         Inputs {
             data_dir: &self.data_dir,
             collectors: &self.collectors,
             vrps_url: &self.vrps_url,
             policy: self.policy(),
-            geofeeds: &self.geofeeds,
+            geofeeds: catalog,
         }
     }
 
@@ -79,8 +83,18 @@ enum Command {
         data: DataArgs,
     },
     Discover {
-        #[command(flatten)]
-        data: DataArgs,
+        #[arg(long, default_value = "data")]
+        data_dir: PathBuf,
+        #[arg(long, default_value = "geofeeds.csv")]
+        output: PathBuf,
+        #[arg(long)]
+        manual: Option<PathBuf>,
+        #[arg(long)]
+        fetch: bool,
+    },
+    CheckCatalog {
+        #[arg(required = true)]
+        catalogs: Vec<PathBuf>,
     },
     Candidates {
         #[command(flatten)]
@@ -98,7 +112,7 @@ enum Command {
         #[arg(long, default_value_t = 50)]
         probe: usize,
         #[arg(long)]
-        add: bool,
+        add_to: Option<PathBuf>,
     },
     Coverage {
         #[command(flatten)]
@@ -150,6 +164,20 @@ enum Command {
     },
 }
 
+fn check_catalogs(catalogs: &[PathBuf]) -> Result<()> {
+    for catalog in catalogs {
+        let report = pipeline::catalog::check(catalog)?;
+        println!(
+            "{}: {} rows, {} geofeeds, {} anchored rows",
+            catalog.display(),
+            report.rows,
+            report.urls,
+            report.anchored
+        );
+    }
+    Ok(())
+}
+
 fn lookup(database: PathBuf, addresses: Vec<IpAddr>) -> Result<()> {
     let reader = maxminddb::Reader::open_readfile(database)?;
     for address in addresses {
@@ -167,15 +195,29 @@ fn lookup(database: PathBuf, addresses: Vec<IpAddr>) -> Result<()> {
 fn main() -> Result<()> {
     match Cli::parse().command {
         Command::Fetch { data } => pipeline::fetch::fetch(&data.fetch(), &mut log),
-        Command::Discover { data } => {
-            pipeline::catalog::discover(&data.data_dir, &data.geofeeds, &mut log)
-        }
+        Command::Discover {
+            data_dir,
+            output,
+            manual,
+            fetch,
+        } => pipeline::catalog::discover(
+            &pipeline::catalog::DiscoverOptions {
+                data_dir: &data_dir,
+                output: &output,
+                manual: manual.as_deref(),
+                fetch,
+            },
+            &mut log,
+        ),
+        Command::CheckCatalog { catalogs } => check_catalogs(&catalogs),
         Command::Build { data, out_dir } => {
-            pipeline::build::build(&data.inputs(), &out_dir, &mut log)
+            let catalog = data.catalog();
+            pipeline::build::build(&data.inputs(&catalog), &out_dir, &mut log)
         }
         Command::Run { data, out_dir } => {
             pipeline::fetch::fetch(&data.fetch(), &mut log)?;
-            pipeline::build::build(&data.inputs(), &out_dir, &mut log)
+            let catalog = data.catalog();
+            pipeline::build::build(&data.inputs(&catalog), &out_dir, &mut log)
         }
         Command::Candidates {
             data,
@@ -185,7 +227,7 @@ fn main() -> Result<()> {
             coverage,
             output,
             probe,
-            add,
+            add_to,
         } => candidates::run(
             &pipeline::candidates::Options {
                 data_dir: &data.data_dir,
@@ -193,13 +235,16 @@ fn main() -> Result<()> {
                 country: &country,
                 asn: &asn,
                 coverage: &coverage,
-                geofeeds: &data.geofeeds,
+                geofeeds: &data.catalog(),
                 probe,
             },
             &output,
-            add,
+            add_to.as_deref(),
         ),
-        Command::Coverage { data, output, top } => coverage::run(&data.inputs(), &output, top),
+        Command::Coverage { data, output, top } => {
+            let catalog = data.catalog();
+            coverage::run(&data.inputs(&catalog), &output, top)
+        }
         Command::Lookup {
             database,
             addresses,
