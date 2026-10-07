@@ -43,6 +43,8 @@ On every pull request: formatting, Clippy with warnings as errors, tests, a chec
 
 release-plz acts as the `opengeoip-bot` GitHub App, so that its pull requests and releases trigger the other workflows. Its client ID is the `BOT_CLIENT_ID` organisation variable, its private key the `BOT_PRIVATE_KEY` secret of the `release` environment, usable from `main` only. A release can be rebuilt by hand from *Actions → Release*.
 
+All crates share one version (`version_group`), so a change in any crate, not only in `cli`, opens a release pull request. Each library crate gets a `<crate>-vX.Y.Z` tag on every release: release-plz compares against it to find the commits since the last release. These tags publish nothing.
+
 ## Dependencies
 
 [Renovate](https://docs.renovatebot.com/) opens grouped pull requests every Monday for Rust crates, GitHub Actions (pinned by SHA) and the base image (pinned by digest).
