@@ -1,5 +1,6 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+use ipnet::IpNet;
 use model::{AsName, Asn, Location, PrefixMap};
 
 const GENERIC_WORDS: &[&str] = &[
@@ -89,11 +90,25 @@ pub fn publishers(counts: &HashMap<Asn, usize>, names: &HashMap<Asn, AsName>) ->
     publishers
 }
 
+fn inner_origins<'a>(
+    routes: &'a BTreeMap<IpNet, Asn>,
+    network: IpNet,
+) -> impl Iterator<Item = Asn> + 'a {
+    routes
+        .range(network..)
+        .take_while(move |(route, _)| network.contains(*route))
+        .map(|(_, asn)| *asn)
+}
+
 pub fn authorize_listed_geofeeds(
     feeds: &[(String, Vec<Location>)],
     origins: &PrefixMap<Asn>,
     names: &HashMap<Asn, AsName>,
 ) -> (Vec<Location>, Vec<ListedFeed>) {
+    let routes: BTreeMap<IpNet, Asn> = origins
+        .iter()
+        .map(|(network, asn)| (network, *asn))
+        .collect();
     let mut accepted = Vec::new();
     let mut reports = Vec::new();
     for (url, locations) in feeds {
@@ -101,17 +116,17 @@ pub fn authorize_listed_geofeeds(
             url: url.clone(),
             ..Default::default()
         };
-        let routed: Vec<(&Location, Asn)> = locations
-            .iter()
-            .filter(|location| location.country.is_some())
-            .filter_map(|location| match origins.longest_match(location.network) {
-                Some((_, asn)) => Some((location, *asn)),
-                None => {
-                    report.unrouted += 1;
-                    None
+        let mut routed: Vec<(&Location, Asn)> = Vec::new();
+        let mut aggregates: Vec<&Location> = Vec::new();
+        for location in locations.iter().filter(|l| l.country.is_some()) {
+            match origins.longest_match(location.network) {
+                Some((_, asn)) => routed.push((location, *asn)),
+                None if inner_origins(&routes, location.network).next().is_some() => {
+                    aggregates.push(location)
                 }
-            })
-            .collect();
+                None => report.unrouted += 1,
+            }
+        }
         report.entries = locations.len();
         let mut counts: HashMap<Asn, usize> = HashMap::new();
         for (_, asn) in &routed {
@@ -124,6 +139,13 @@ pub fn authorize_listed_geofeeds(
                 accepted.push(location.clone());
             }
         }
+        for location in aggregates {
+            if inner_origins(&routes, location.network).all(|asn| report.publishers.contains(&asn))
+            {
+                report.accepted += 1;
+                accepted.push(location.clone());
+            }
+        }
         reports.push(report);
     }
     (accepted, reports)
@@ -131,8 +153,6 @@ pub fn authorize_listed_geofeeds(
 
 #[cfg(test)]
 mod tests {
-    use ipnet::IpNet;
-
     use super::*;
 
     fn name(handle: &str, organization: &str) -> AsName {
@@ -177,6 +197,10 @@ mod tests {
             ("11.1.0.0/16", 16509),
             ("11.2.0.0/16", 8987),
             ("11.3.0.0/16", 64999),
+            ("13.0.0.0/16", 16509),
+            ("13.1.0.0/16", 8987),
+            ("13.2.0.0/16", 16509),
+            ("13.3.0.0/16", 64999),
         ]
         .into_iter()
         .map(|(n, a)| (n.parse::<IpNet>().unwrap(), a))
@@ -189,17 +213,22 @@ mod tests {
                 location("11.2.1.0/24"),
                 location("11.3.1.0/24"),
                 location("12.0.0.0/24"),
+                location("13.0.0.0/15"),
+                location("13.2.0.0/15"),
             ],
         )];
         let (accepted, reports) = authorize_listed_geofeeds(&feeds, &origins, &names);
         let accepted: Vec<String> = accepted.iter().map(|l| l.network.to_string()).collect();
-        assert_eq!(accepted, ["11.0.1.0/24", "11.1.1.0/24", "11.2.1.0/24"]);
+        assert_eq!(
+            accepted,
+            ["11.0.1.0/24", "11.1.1.0/24", "11.2.1.0/24", "13.0.0.0/15"]
+        );
         assert_eq!(
             reports,
             [ListedFeed {
                 url: "https://feed.example/geo.csv".into(),
-                entries: 5,
-                accepted: 3,
+                entries: 7,
+                accepted: 4,
                 unrouted: 1,
                 publishers: vec![8987, 16509],
             }]
