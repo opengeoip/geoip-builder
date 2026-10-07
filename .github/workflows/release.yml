@@ -69,7 +69,7 @@ jobs:
   publish:
     name: Release assets
     needs: binaries
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       id-token: write
@@ -92,7 +92,7 @@ jobs:
   image:
     name: Container image
     needs: binaries
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: write
