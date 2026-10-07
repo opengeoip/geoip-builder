@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/opengeoip/geoip-builder/compare/v0.1.0...v0.1.1) - 2026-10-06
+
+### Other
+
+- move command logic into analysis and pipeline crates, and tighten the documentation ([#6](https://github.com/opengeoip/geoip-builder/pull/6))
+
 ## [0.1.0](https://github.com/opengeoip/geoip-builder/releases/tag/v0.1.0) - 2026-10-06
 
 ### Added
