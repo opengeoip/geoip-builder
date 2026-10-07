@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/opengeoip/geoip-builder/compare/v0.2.1...v0.2.2) - 2026-10-07
+
+### Other
+
+- drop the latency module left unused since WHEREIS was removed ([#20](https://github.com/opengeoip/geoip-builder/pull/20))
+
 ## [0.2.1](https://github.com/opengeoip/geoip-builder/compare/v0.2.0...v0.2.1) - 2026-10-07
 
 ### Fixed
