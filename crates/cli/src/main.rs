@@ -17,7 +17,7 @@ pub fn log(line: String) {
 }
 
 #[derive(Parser)]
-#[command(version, about)]
+#[command(name = "geoip-builder", version, about)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
