@@ -7,7 +7,8 @@ Everything is downloaded in bulk by `fetch`. Nothing is queried per address.
 | Registry statistics | [delegated-extended files](https://www.nro.net/about/rirs/statistics/) of the five RIRs | country of every allocated block |
 | Registry databases | RPSL dumps of RIPE NCC, APNIC, AFRINIC and LACNIC | country of sub-allocations, geofeed references |
 | ARIN geofeed references | daily file of [geofeed-finder](https://github.com/massimocandela/geofeed-finder) | geofeed references in ARIN space |
-| Geofeeds | the URLs in [`catalog/geofeeds.csv`](../catalog/geofeeds.csv) | location declared by each operator |
+| Geofeed catalog | latest release of [opengeoip/geofeeds](https://github.com/opengeoip/geofeeds) | the geofeeds to download |
+| Geofeeds | the URLs of the catalog | location declared by each operator |
 | BGP | [RIPE RIS](https://ris.ripe.net/) routing table dumps | origin AS of every prefix |
 | RPKI | [rpki-client](https://console.rpki-client.org/) export | route origin validation |
 | AS names | [RIPE NCC list](https://ftp.ripe.net/ripe/asnames/asn.txt) | organization of each AS |

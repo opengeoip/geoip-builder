@@ -22,15 +22,15 @@ Geofeeds are downloaded over HTTP or HTTPS without checking certificates. Trust 
 
 ## The geofeed catalog
 
-[`catalog/geofeeds.csv`](../catalog/geofeeds.csv) lists every geofeed the build uses:
+The list of geofeeds lives in [opengeoip/geofeeds](https://github.com/opengeoip/geofeeds). Every day, a workflow there runs `discover` on the latest registry dumps, adds the hand-maintained `manual.csv`, and publishes the result as a release. `fetch` downloads the latest one.
 
 | Column | Content |
 |---|---|
 | `url` | the geofeed |
 | `network` | the prefix of the registry object referencing it, empty for an unanchored geofeed |
-| `source` | the registry it was found in, or `manual` for a row added by hand |
+| `source` | the registry it was found in, or `manual` |
 
-`discover` rewrites the registry rows and keeps the `manual` ones. The file is versioned, so its diffs show which geofeeds appeared or disappeared. To add a geofeed, add a line such as `https://example.net/geofeed.csv,,manual`.
+To add a geofeed, open a pull request on `manual.csv` with a line such as `https://example.net/geofeed.csv,,manual`.
 
 ## ASN
 

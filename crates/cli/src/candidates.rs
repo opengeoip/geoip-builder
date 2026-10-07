@@ -39,7 +39,7 @@ fn write(report: &Report, output: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn run(options: &Options<'_>, output: &Path, add: bool) -> Result<()> {
+pub fn run(options: &Options<'_>, output: &Path, add_to: Option<&Path>) -> Result<()> {
     let report = candidates(options)?;
     if report.coverage_missing {
         eprintln!(
@@ -56,12 +56,11 @@ pub fn run(options: &Options<'_>, output: &Path, add: bool) -> Result<()> {
     for (asn, url) in &report.new_geofeeds {
         eprintln!("  AS{asn}: new geofeed {url}");
     }
-    if add && !report.new_geofeeds.is_empty() {
-        let count = add_to_catalog(
-            options.geofeeds,
-            report.new_geofeeds.into_iter().map(|(_, url)| url),
-        )?;
-        eprintln!("{}: {count} rows", options.geofeeds.display());
+    if let Some(manual) = add_to
+        && !report.new_geofeeds.is_empty()
+    {
+        let count = add_to_catalog(manual, report.new_geofeeds.into_iter().map(|(_, url)| url))?;
+        eprintln!("{}: {count} rows", manual.display());
     }
     Ok(())
 }

@@ -112,7 +112,6 @@ jobs:
           merge-multiple: true
       - run: |
           mkdir -p image/work
-          cp -r catalog image/work/catalog
           mv dist/amd64 dist/arm64 image/
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0

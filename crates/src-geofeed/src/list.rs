@@ -56,6 +56,26 @@ pub fn merge_discovered(path: &Path, discovered: impl IntoIterator<Item = Row>) 
     write(path, manual.into_iter().chain(discovered))
 }
 
+pub fn problems(rows: &[Row]) -> Vec<String> {
+    rows.iter()
+        .filter_map(|row| {
+            let scheme = row
+                .url
+                .split_once("://")
+                .map(|(scheme, _)| scheme.to_ascii_lowercase());
+            match scheme.as_deref() {
+                Some("http" | "https") if !row.url.contains(char::is_whitespace) => None,
+                _ => Some(format!("invalid URL {:?}", row.url)),
+            }
+            .or_else(|| {
+                row.source
+                    .is_empty()
+                    .then(|| format!("{}: empty source", row.url))
+            })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -66,6 +86,22 @@ mod tests {
             network: network.map(|n| n.parse().unwrap()),
             source: source.into(),
         }
+    }
+
+    #[test]
+    fn reports_invalid_rows() {
+        let rows = [
+            row("https://a.example/feed.csv", None, "manual"),
+            row("ftp://b.example/feed.csv", None, "manual"),
+            row("https://c.example/feed.csv", None, ""),
+        ];
+        assert_eq!(
+            problems(&rows),
+            [
+                "invalid URL \"ftp://b.example/feed.csv\"",
+                "https://c.example/feed.csv: empty source"
+            ]
+        );
     }
 
     #[test]

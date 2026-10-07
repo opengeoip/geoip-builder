@@ -39,7 +39,7 @@ On every pull request: formatting, Clippy with warnings as errors, tests, a chec
 [release-plz](https://release-plz.dev/) keeps a release pull request open with the next version and `CHANGELOG.md`. Merging it tags `vX.Y.Z` and publishes the release, which builds:
 
 - static `x86_64` and `aarch64` Linux binaries, with `SHA256SUMS` and build provenance;
-- a multi-architecture image, `ghcr.io/opengeoip/geoip-builder` (`X.Y.Z`, `X.Y`, `latest`), distroless and non-root, with the catalog in `/work`.
+- a multi-architecture image, `ghcr.io/opengeoip/geoip-builder` (`X.Y.Z`, `X.Y`, `latest`), distroless and non-root, working in `/work`.
 
 release-plz acts as the `opengeoip-bot` GitHub App, so that its pull requests and releases trigger the other workflows. Its client ID is the `BOT_CLIENT_ID` organisation variable, its private key the `BOT_PRIVATE_KEY` secret of the `release` environment, usable from `main` only. A release can be rebuilt by hand from *Actions → Release*.
 
