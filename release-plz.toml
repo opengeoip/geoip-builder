@@ -1,16 +1,14 @@
 [workspace]
 git_only = true
-release = false
 semver_check = false
 changelog_update = false
 git_release_enable = false
-git_tag_enable = false
 git_tag_name = "{{ package }}-v{{ version }}"
 pr_labels = ["release"]
 
 [[package]]
 name = "cli"
-release = true
+version_group = "geoip-builder"
 changelog_update = true
 changelog_path = "CHANGELOG.md"
 changelog_include = [
@@ -29,7 +27,62 @@ changelog_include = [
     "src-rpki",
     "src-rpsl",
 ]
-git_tag_enable = true
 git_tag_name = "v{{ version }}"
 git_release_enable = true
 git_release_name = "v{{ version }}"
+
+[[package]]
+name = "analysis"
+version_group = "geoip-builder"
+
+[[package]]
+name = "fetch"
+version_group = "geoip-builder"
+
+[[package]]
+name = "merge"
+version_group = "geoip-builder"
+
+[[package]]
+name = "mmdb-writer"
+version_group = "geoip-builder"
+
+[[package]]
+name = "model"
+version_group = "geoip-builder"
+
+[[package]]
+name = "pipeline"
+version_group = "geoip-builder"
+
+[[package]]
+name = "src-arin"
+version_group = "geoip-builder"
+
+[[package]]
+name = "src-asnames"
+version_group = "geoip-builder"
+
+[[package]]
+name = "src-atlas"
+version_group = "geoip-builder"
+
+[[package]]
+name = "src-bgp"
+version_group = "geoip-builder"
+
+[[package]]
+name = "src-delegated"
+version_group = "geoip-builder"
+
+[[package]]
+name = "src-geofeed"
+version_group = "geoip-builder"
+
+[[package]]
+name = "src-rpki"
+version_group = "geoip-builder"
+
+[[package]]
+name = "src-rpsl"
+version_group = "geoip-builder"
