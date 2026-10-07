@@ -46,6 +46,12 @@ impl<T> PrefixMap<T> {
     pub fn longest_match(&self, network: IpNet) -> Option<(IpNet, &T)> {
         self.covering(network).next()
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (IpNet, &T)> {
+        self.entries
+            .iter()
+            .map(|(network, value)| (*network, value))
+    }
 }
 
 impl<T> FromIterator<(IpNet, T)> for PrefixMap<T> {
