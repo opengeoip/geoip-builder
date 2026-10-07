@@ -1,12 +1,10 @@
 mod asn;
 mod geofeed;
-mod latency;
 mod listed;
 mod location;
 
 pub use asn::{AsnStats, RpkiPolicy, SelectedRoute, asn_db, select_origins};
 pub use geofeed::{GeofeedStats, authorize_geofeeds};
-pub use latency::{LatencyRule, LatencyStats, PrefixPings, locate_by_latency};
 pub use listed::{ListedFeed, authorize_listed_geofeeds};
 pub use location::{LocationStats, location_dbs};
 
