@@ -59,12 +59,9 @@ pub fn location_dbs(
 
     let mut applied = 0;
     for assignment in &assignments {
-        let Some((_, owner)) =
-            registered
-                .longest_match(assignment.network)
-                .filter(|(network, (_, registry))| {
-                    *registry == assignment.registry && *network != assignment.network
-                })
+        let Some((_, owner)) = registered
+            .longest_match(assignment.network)
+            .filter(|(_, (_, registry))| *registry == assignment.registry)
         else {
             continue;
         };
@@ -185,7 +182,7 @@ mod tests {
             postal: None,
         }];
         let (db, _, stats) = location_dbs(delegations, assignments, vec![locations], 0);
-        assert_eq!((stats.assignments, stats.ignored_assignments), (2, 3));
+        assert_eq!((stats.assignments, stats.ignored_assignments), (3, 2));
         let reader = read(db);
         let country = |ip| get::<String>(&reader, ip, &path!["country", "iso_code"]);
         let registered = |ip| get::<String>(&reader, ip, &path!["registered_country", "iso_code"]);
@@ -193,8 +190,9 @@ mod tests {
         assert_eq!(registered("90.68.0.1").as_deref(), Some("FR"));
         assert_eq!(country("90.68.1.1").as_deref(), Some("FR"));
         assert_eq!(country("90.68.2.1").as_deref(), Some("PT"));
-        assert_eq!(country("90.70.0.1").as_deref(), Some("FR"));
-        assert_eq!(country("90.100.0.1").as_deref(), Some("FR"));
+        assert_eq!(country("90.70.0.1").as_deref(), Some("GB"));
+        assert_eq!(country("90.100.0.1").as_deref(), Some("GB"));
+        assert_eq!(registered("90.100.0.1").as_deref(), Some("FR"));
         assert_eq!(country("91.0.0.1"), None);
     }
 

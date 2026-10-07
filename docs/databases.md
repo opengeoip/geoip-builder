@@ -5,7 +5,7 @@
 Each address gets the country of the most precise source that knows about it. The layers below are applied in order, each one overriding the previous for the ranges it covers:
 
 1. **Registry statistics.** The country the RIR recorded for the holder of the block.
-2. **Sub-allocations.** The country of registry objects (`inetnum`, `inet6num`) that a provider assigns to a customer, for example Orange's network in Spain inside a French allocation. Only objects strictly inside a block of the same RIR count: the country on the allocation itself is typed by the provider, while the RIR checks the one in its statistics.
+2. **Sub-allocations.** The country of registry objects (`inetnum`, `inet6num`) that a provider assigns to a customer, for example Orange's network in Spain inside a French allocation. Only objects inside a block of the same RIR count. An object covering the whole block counts too, for example Stellantis's former Fiat network, registered in France and used in Italy: its country describes where the block is used, while the statistics give the holder's country.
 3. **Unanchored geofeeds.** Geofeeds listed by hand in the catalog (see below).
 4. **Registry geofeeds.** Geofeeds referenced from registry objects, the most reliable source.
 
