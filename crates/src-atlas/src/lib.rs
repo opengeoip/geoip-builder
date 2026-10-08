@@ -7,6 +7,7 @@ use bzip2::read::MultiBzDecoder;
 use serde::Deserialize;
 
 const CONNECTED: u8 = 1;
+const SYSTEM_TAG: &str = "system-";
 const AUTO_LOCATED: [&str; 2] = ["system-auto-geoip-country", "system-auto-geoip-city"];
 
 #[derive(Deserialize)]
@@ -36,6 +37,7 @@ pub struct Probe {
     pub is_anchor: bool,
     pub asn: Option<u32>,
     pub auto_located: bool,
+    pub tags: Vec<String>,
 }
 
 pub fn parse<R: Read>(reader: R) -> Result<Vec<Probe>> {
@@ -69,6 +71,11 @@ pub fn parse_json<R: Read>(reader: R) -> Result<Vec<Probe>> {
             continue;
         }
         let auto_located = raw.tags.iter().any(|t| AUTO_LOCATED.contains(&t.as_str()));
+        let tags: Vec<String> = raw
+            .tags
+            .into_iter()
+            .filter(|t| !t.starts_with(SYSTEM_TAG))
+            .collect();
         for (address, asn) in [(raw.address_v4, raw.asn_v4), (raw.address_v6, raw.asn_v6)] {
             let Some(address) = address else {
                 continue;
@@ -80,6 +87,7 @@ pub fn parse_json<R: Read>(reader: R) -> Result<Vec<Probe>> {
                 is_anchor: raw.is_anchor,
                 asn,
                 auto_located,
+                tags: tags.clone(),
             });
         }
     }
@@ -122,6 +130,7 @@ mod tests {
                 "9 193.0.0.1 NL true None false"
             ]
         );
+        assert_eq!(probes[0].tags, ["home"]);
     }
 
     #[test]

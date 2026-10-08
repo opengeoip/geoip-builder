@@ -216,6 +216,7 @@ mod tests {
             is_anchor,
             asn: Some(id),
             auto_located: false,
+            tags: Vec::new(),
         }
     }
 

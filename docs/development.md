@@ -20,10 +20,10 @@ The code has no comments: explanations live in these documents.
 | `cli` | the `geoip-builder` command: arguments and reports |
 | `pipeline` | the `fetch`, `discover` and `build` steps and the list of sources |
 | `analysis` | the computations behind `evaluate`, `compare`, `coverage` and `candidates` |
-| `merge` | builds the country, city and ASN databases |
+| `merge` | builds the country, city, ASN and Anonymous IP databases |
 | `mmdb-writer` | writes MaxMind DB files |
 | `fetch` | cached downloads |
-| `src-*` | one parser per source: `delegated`, `rpsl`, `arin`, `geofeed`, `bgp`, `rpki`, `asnames`, `atlas` |
+| `src-*` | one parser per source: `delegated`, `rpsl`, `arin`, `geofeed`, `bgp`, `rpki`, `asnames`, `atlas`, `peeringdb`, `aspop` |
 | `model` | shared types and helpers |
 
 ## Contributing

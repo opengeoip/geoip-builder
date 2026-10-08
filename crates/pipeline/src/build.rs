@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -147,6 +147,30 @@ pub fn listed_geofeeds(
     listed
 }
 
+pub fn hosting(
+    data_dir: &Path,
+    selected: &[merge::SelectedRoute],
+    log: &mut Log<'_>,
+) -> Result<HashSet<Asn>> {
+    let networks = src_peeringdb::parse(open(data_dir, &sources::peeringdb())?)?;
+    let users = src_aspop::parse(open(data_dir, &sources::aspop())?)?;
+    log(format!(
+        "hosting: {} PeeringDB networks, {} ASes with APNIC user estimates",
+        networks.len(),
+        users.len()
+    ));
+    let types: HashMap<Asn, Vec<String>> = networks
+        .values()
+        .map(|n| (n.asn, n.types().into_iter().map(str::to_string).collect()))
+        .collect();
+    let (hosting, stats) = merge::hosting_ases(&types, &users, &merge::ipv4_addresses(selected));
+    log(format!(
+        "hosting: {} ASes declared as content, {} infrastructure ASes with few users",
+        stats.by_type, stats.by_population
+    ));
+    Ok(hosting)
+}
+
 pub fn prepare(inputs: &Inputs<'_>, log: &mut Log<'_>) -> Result<Prepared> {
     let epoch = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let started = Instant::now();
@@ -186,6 +210,12 @@ pub fn build(inputs: &Inputs<'_>, out_dir: &Path, log: &mut Log<'_>) -> Result<(
     );
     log(format!("asn: {unnamed} routes kept without a name"));
     write_logged(asn, &out_dir.join("asn.mmdb"), log)?;
+
+    let hosting = hosting(inputs.data_dir, &prepared.selected, log)?;
+    let (anonymous, prefixes) =
+        merge::anonymous_ip_db(&prepared.selected, &hosting, prepared.epoch);
+    log(format!("hosting: {prefixes} prefixes flagged"));
+    write_logged(anonymous, &out_dir.join("anonymous-ip.mmdb"), log)?;
 
     let started = Instant::now();
     let (country, city, stats) = merge::location_dbs(

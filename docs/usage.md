@@ -5,7 +5,7 @@
 ```sh
 geoip-builder run                 # fetch, then build
 geoip-builder fetch               # download every source into data/
-geoip-builder build               # write out/country.mmdb, city.mmdb and asn.mmdb
+geoip-builder build               # write out/country.mmdb, city.mmdb, asn.mmdb and anonymous-ip.mmdb
 ```
 
 `fetch` downloads the bulk sources and the latest [geofeed catalog](https://github.com/opengeoip/geofeeds), then every geofeed it lists. It uses conditional requests, so a run where nothing changed is quick. When a download fails, the previous copy is kept and `fetch` exits with an error at the end. Failed geofeeds are listed in `data/geofeeds/failures.tsv`.
@@ -50,6 +50,8 @@ geoip-builder compare --kind country out/country.mmdb GeoLite2-Country.mmdb
 ```
 
 `evaluate` checks databases against the countries reported by RIPE Atlas probes, for IPv4 and IPv6, for all probes, anchors (datacentres) and home probes. It lists the most frequent errors and, for two databases, which one is right when they disagree. Probes known to report a wrong location and anycast addresses are left out, unless `--keep-suspicious` is set. `--only FR` limits it to one country, `--top` sets how many errors are listed.
+
+`evaluate` also accepts an Anonymous IP database. It then checks the hosting flag against the tags of the probes: `datacentre`, `vps`, `cloud` and similar tags for hosted probes, `home`, `fibre`, `cable`, `dsl` and similar tags for access probes. It prints the precision and recall of the flag and the ASes behind the errors.
 
 `compare` measures how much two databases agree, weighted by IPv4 addresses and IPv6 /48s. It lists the largest disagreements and the ranges behind them. `--only FR` or `--only AS3215` limits it to one country or AS.
 

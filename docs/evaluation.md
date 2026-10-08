@@ -26,6 +26,20 @@ On the 2026-10-08 release:
 
 Six probes in ten are in Europe, so the overall figure mostly reflects Europe. Most of the gap comes from cloud and hosting networks that publish no geofeed, such as Oracle Cloud or Microsoft Azure.
 
+## Hosting providers
+
+`evaluate out/anonymous-ip.mmdb` checks the hosting flag against probes whose owners tagged them as hosted (`datacentre`, `vps`…) or on an access network (`home`, `fibre`, `cable`…). Probes with both kinds of tags, or neither, are left out.
+
+On 2026-10-08:
+
+| Probes | IPv4 | IPv6 |
+|---|---|---|
+| precision: flagged probes that are hosted | 81.2 % | 80.0 % |
+| recall: hosted probes that are flagged | 50.8 % | 45.8 % |
+| hosted / access probes | 630 / 4 235 | 533 / 2 768 |
+
+Most missed probes are in ASes that declare themselves as `NSP` while carrying many VPN users, in research networks hosting servers, or in ASes absent from PeeringDB, such as Amazon's AS14618. Most false positives are home probes on small networks declared as `Content`. Tags are set by probe owners, so the reference is itself approximate.
+
 ## Against GeoLite2
 
 Share of address space where both databases agree, on 2026-10-01 (`compare`):

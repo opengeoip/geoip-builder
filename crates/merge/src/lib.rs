@@ -1,10 +1,12 @@
 mod asn;
 mod geofeed;
+mod hosting;
 mod listed;
 mod location;
 
 pub use asn::{AsnStats, RpkiPolicy, SelectedRoute, asn_db, select_origins};
 pub use geofeed::{GeofeedStats, anchored_in_their_registry, authorize_geofeeds};
+pub use hosting::{HostingStats, anonymous_ip_db, hosting_ases, ipv4_addresses};
 pub use listed::{ListedFeed, ListedGeofeed, authorize_listed_geofeeds};
 pub use location::{LocationStats, location_dbs};
 
