@@ -176,8 +176,12 @@ pub fn run(options: &Options<'_>, paths: &[PathBuf]) -> Result<()> {
     } else {
         let (kept, excluded) = pipeline::truth::reliable(options.data_dir, probes)?;
         println!(
-            "excluded {} addresses of probes listed as misplaced ({} listed), {} anycast addresses and {} addresses of probes placed by IP geolocation",
-            excluded.misplaced, excluded.listed, excluded.anycast, excluded.auto_located
+            "excluded {} addresses of probes listed as misplaced ({} listed), {} anycast addresses, {} addresses of probes placed by IP geolocation and {} addresses without an AS",
+            excluded.misplaced,
+            excluded.listed,
+            excluded.anycast,
+            excluded.auto_located,
+            excluded.unrouted
         );
         println!();
         kept
