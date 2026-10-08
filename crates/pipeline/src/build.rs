@@ -82,9 +82,14 @@ pub fn delegations(data_dir: &Path, log: &mut Log<'_>) -> Result<Vec<Delegation>
 
 pub fn anchored_geofeeds(
     data_dir: &Path,
-    references: &[GeofeedRef],
+    references: &[(Registry, GeofeedRef)],
+    delegations: &[Delegation],
     log: &mut Log<'_>,
 ) -> Vec<Location> {
+    let (references, outside) = merge::anchored_in_their_registry(references, delegations);
+    log(format!(
+        "geofeeds: {outside} references outside the delegations of their registry ignored"
+    ));
     let urls: BTreeSet<&str> = references.iter().map(|r| r.url.as_str()).collect();
     let (feeds, missing) = read_feeds(&geofeed_dir(data_dir), urls);
     log(format!(
@@ -92,7 +97,7 @@ pub fn anchored_geofeeds(
         feeds.len(),
         missing
     ));
-    let (anchored, stats) = merge::authorize_geofeeds(references, &feeds);
+    let (anchored, stats) = merge::authorize_geofeeds(&references, &feeds);
     log(format!(
         "geofeeds: {} entries, {} accepted, {} without country, {} outside their inetnum, {} overridden by a more specific inetnum",
         stats.entries, stats.accepted, stats.no_country, stats.not_anchored, stats.overridden
@@ -150,7 +155,7 @@ pub fn prepare(inputs: &Inputs<'_>, log: &mut Log<'_>) -> Result<Prepared> {
     let delegations = delegations(inputs.data_dir, log)?;
     let assignments = catalog::rpsl_records(inputs.data_dir, log)?.assignments;
     let catalog = catalog::catalog(inputs.geofeeds, log)?;
-    let anchored = anchored_geofeeds(inputs.data_dir, &catalog.references, log);
+    let anchored = anchored_geofeeds(inputs.data_dir, &catalog.references, &delegations, log);
     let listed = listed_geofeeds(inputs.data_dir, &catalog.unanchored, &selected, log);
     Ok(Prepared {
         epoch,

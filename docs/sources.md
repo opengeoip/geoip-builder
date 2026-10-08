@@ -19,4 +19,4 @@ Everything is downloaded in bulk by `fetch`. Nothing is queried per address.
 
 ## ARIN
 
-ARIN does not publish its database freely: a dump needs a signed [Bulk Whois](https://www.arin.net/reference/research/bulkwhois/) agreement, and its RDAP terms forbid compiling the database. Its geofeed references therefore come from the file geofeed-finder publishes every day. Each `fetch` checks a few of its records against ARIN RDAP, one request per second, and reports any difference. A Bulk Whois dump would replace that file.
+ARIN does not publish its database freely: a dump needs a signed [Bulk Whois](https://www.arin.net/reference/research/bulkwhois/) agreement, and its RDAP terms forbid compiling the database. Its geofeed references therefore come from the file geofeed-finder publishes every day. Every `fetch` and `discover` checks a sample of its records against ARIN RDAP, one request per second (`--arin-check-sample`, 10 by default). `fetch` reports any difference; `discover` fails, so the published catalog keeps its previous version rather than taking a file that disagrees with ARIN. A Bulk Whois dump would replace that file.

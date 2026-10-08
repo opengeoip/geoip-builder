@@ -91,6 +91,8 @@ enum Command {
         manual: Option<PathBuf>,
         #[arg(long)]
         fetch: bool,
+        #[arg(long, default_value_t = 10)]
+        arin_check_sample: usize,
     },
     CheckCatalog {
         #[arg(long)]
@@ -204,12 +206,14 @@ fn main() -> Result<()> {
             output,
             manual,
             fetch,
+            arin_check_sample,
         } => pipeline::catalog::discover(
             &pipeline::catalog::DiscoverOptions {
                 data_dir: &data_dir,
                 output: &output,
                 manual: manual.as_deref(),
                 fetch,
+                arin_check_sample,
             },
             &mut log,
         ),
