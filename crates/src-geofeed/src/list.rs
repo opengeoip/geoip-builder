@@ -96,6 +96,10 @@ pub fn problems(rows: &[Row]) -> Vec<String> {
                     .then(|| format!("{}: empty source", row.url))
             })
             .or_else(|| {
+                (row.is_manual() && row.network.is_some())
+                    .then(|| format!("{}: network set on a manual geofeed", row.url))
+            })
+            .or_else(|| {
                 (row.network.is_none() && row.asn.is_empty())
                     .then(|| format!("{}: unanchored geofeed without asn", row.url))
             })
@@ -145,6 +149,7 @@ mod tests {
                     "ripencc",
                 )
             },
+            row("https://f.example/feed.csv", Some("192.0.2.0/24"), "manual"),
         ];
         assert_eq!(
             problems(&rows),
@@ -153,6 +158,7 @@ mod tests {
                 "https://c.example/feed.csv: empty source",
                 "https://d.example/feed.csv: unanchored geofeed without asn",
                 "https://e.example/feed.csv: asn set on an anchored geofeed",
+                "https://f.example/feed.csv: network set on a manual geofeed",
             ]
         );
     }
@@ -166,7 +172,7 @@ mod tests {
             "url,network,source,asn\n\
              # added by hand\n\
              https://cloud.example/feed.csv,,manual,64501 64500 64501\n\
-             https://isp.example/feed.csv, 192.0.2.0/24 ,manual,\n\
+             https://isp.example/feed.csv,,manual, 64502 \n\
              https://old.example/feed.csv,198.51.100.0/24,ripencc,\n",
         )
         .unwrap();
@@ -184,11 +190,7 @@ mod tests {
             read(&path).unwrap(),
             [
                 listed("https://cloud.example/feed.csv", &[64500, 64501]),
-                row(
-                    "https://isp.example/feed.csv",
-                    Some("192.0.2.0/24"),
-                    "manual"
-                ),
+                listed("https://isp.example/feed.csv", &[64502]),
                 row(
                     "https://new.example/feed.csv",
                     Some("203.0.113.0/24"),

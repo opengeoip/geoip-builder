@@ -141,7 +141,9 @@ pub struct Catalog {
 }
 
 pub fn catalog(geofeeds: &Path, log: &mut Log<'_>) -> Result<Catalog> {
-    let rows = list::read(geofeeds)?;
+    let (ignored, rows): (Vec<list::Row>, Vec<list::Row>) = list::read(geofeeds)?
+        .into_iter()
+        .partition(|row| row.is_manual() && row.network.is_some());
     let references: Vec<GeofeedRef> = rows
         .iter()
         .filter_map(|row| {
@@ -159,10 +161,11 @@ pub fn catalog(geofeeds: &Path, log: &mut Log<'_>) -> Result<Catalog> {
             .extend(&row.asn);
     }
     log(format!(
-        "{}: {} anchored references, {} unanchored geofeeds",
+        "{}: {} anchored references, {} unanchored geofeeds, {} manual rows with a network ignored",
         geofeeds.display(),
         references.len(),
-        unanchored.len()
+        unanchored.len(),
+        ignored.len()
     ));
     Ok(Catalog {
         references,

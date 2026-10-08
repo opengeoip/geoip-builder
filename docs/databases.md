@@ -27,11 +27,11 @@ The list of geofeeds lives in [opengeoip/geofeeds](https://github.com/opengeoip/
 | Column | Content |
 |---|---|
 | `url` | the geofeed |
-| `network` | the prefix of the registry object referencing it, empty for an unanchored geofeed |
+| `network` | the prefix of the registry object referencing it, empty for an unanchored geofeed and always empty for a `manual` row |
 | `source` | the registry it was found in, or `manual` |
 | `asn` | for an unanchored geofeed, the ASes of its publisher, separated by spaces |
 
-To add a geofeed, open a pull request on `manual.csv` with a line such as `https://example.net/geofeed.csv,,manual,64500 64501`. List only ASes whose registry records name the publisher: an unanchored geofeed is trusted for nothing else.
+To add a geofeed, open a pull request on `manual.csv` with a line such as `https://example.net/geofeed.csv,,manual,64500 64501`. List only ASes whose registry records name the publisher: an unanchored geofeed is trusted for nothing else. Only registries anchor a geofeed on a prefix: `build` ignores a `manual` row with a `network`, since nothing proves who wrote it, and `check-catalog` rejects it.
 
 ## ASN
 
