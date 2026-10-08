@@ -40,6 +40,7 @@ jobs:
 
   pr:
     name: Release pull request
+    needs: release
     if: github.repository_owner == 'opengeoip'
     runs-on: ubuntu-26.04
     environment: release
