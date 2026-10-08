@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/opengeoip/geoip-builder/compare/v0.3.2...v0.4.0) - 2026-10-08
+
+### Fixed
+
+- [**breaking**] manual geofeeds take only a url and their ASes ([#28](https://github.com/opengeoip/geoip-builder/pull/28))
+
 ## [0.3.2](https://github.com/opengeoip/geoip-builder/compare/v0.3.1...v0.3.2) - 2026-10-08
 
 ### Added
