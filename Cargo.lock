@@ -26,6 +26,7 @@ dependencies = [
  "ipnetwork",
  "maxminddb",
  "mmdb-writer",
+ "model",
  "src-atlas",
  "src-geofeed",
 ]

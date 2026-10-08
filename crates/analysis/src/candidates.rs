@@ -165,12 +165,16 @@ mod tests {
                 address: "192.0.2.1".parse().unwrap(),
                 country: "DE".into(),
                 is_anchor: false,
+                asn: None,
+                auto_located: false,
             },
             Probe {
                 id: 2,
                 address: "198.51.100.1".parse().unwrap(),
                 country: "DE".into(),
                 is_anchor: false,
+                asn: None,
+                auto_located: false,
             },
         ];
         let observations = observe(&probes, &countries, &routes).unwrap();

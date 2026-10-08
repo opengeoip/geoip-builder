@@ -1,3 +1,4 @@
+pub mod continent;
 pub mod date;
 pub mod hash;
 pub mod prefix_map;
