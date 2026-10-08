@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "analysis"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "ipnet",
@@ -227,7 +227,7 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
 name = "cli"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "analysis",
  "anyhow",
@@ -312,7 +312,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "fetch"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -536,7 +536,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "merge"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "ipnet",
  "maxminddb",
@@ -558,7 +558,7 @@ dependencies = [
 
 [[package]]
 name = "mmdb-writer"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "ipnet",
  "maxminddb",
@@ -567,7 +567,7 @@ dependencies = [
 
 [[package]]
 name = "model"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "ipnet",
 ]
@@ -629,7 +629,7 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
 name = "pipeline"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "analysis",
  "anyhow",
@@ -861,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "src-arin"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "model",
@@ -872,7 +872,7 @@ dependencies = [
 
 [[package]]
 name = "src-asnames"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "model",
@@ -880,7 +880,7 @@ dependencies = [
 
 [[package]]
 name = "src-atlas"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "bzip2",
@@ -890,7 +890,7 @@ dependencies = [
 
 [[package]]
 name = "src-bgp"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "bgpkit-parser",
@@ -901,7 +901,7 @@ dependencies = [
 
 [[package]]
 name = "src-delegated"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "ipnet",
@@ -910,7 +910,7 @@ dependencies = [
 
 [[package]]
 name = "src-geofeed"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "csv",
@@ -923,7 +923,7 @@ dependencies = [
 
 [[package]]
 name = "src-rpki"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "ipnet",
@@ -934,7 +934,7 @@ dependencies = [
 
 [[package]]
 name = "src-rpsl"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "ipnet",
