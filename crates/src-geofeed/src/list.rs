@@ -4,7 +4,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use ipnet::IpNet;
-use model::Asn;
+use model::{Asn, Registry};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -146,6 +146,12 @@ pub fn problems(rows: &[Row]) -> Vec<String> {
                     .then(|| format!("{}: network set on a manual geofeed", row.url))
             })
             .or_else(|| {
+                (!row.is_manual()
+                    && row.network.is_some()
+                    && row.source.parse::<Registry>().is_err())
+                .then(|| format!("{}: unknown registry {:?}", row.url, row.source))
+            })
+            .or_else(|| {
                 (row.network.is_none() && row.asn.is_empty())
                     .then(|| format!("{}: unanchored geofeed without asn", row.url))
             })
@@ -196,6 +202,7 @@ mod tests {
                 )
             },
             row("https://f.example/feed.csv", Some("192.0.2.0/24"), "manual"),
+            row("https://g.example/feed.csv", Some("192.0.2.0/24"), "whois"),
         ];
         assert_eq!(
             problems(&rows),
@@ -205,6 +212,7 @@ mod tests {
                 "https://d.example/feed.csv: unanchored geofeed without asn",
                 "https://e.example/feed.csv: asn set on an anchored geofeed",
                 "https://f.example/feed.csv: network set on a manual geofeed",
+                "https://g.example/feed.csv: unknown registry \"whois\"",
             ]
         );
     }

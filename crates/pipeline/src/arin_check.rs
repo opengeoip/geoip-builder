@@ -13,7 +13,13 @@ use model::hash::fnv1a;
 
 use crate::{Log, sources};
 
-pub fn run(data_dir: &Path, sample: usize, interval: Duration, log: &mut Log<'_>) -> Result<()> {
+pub struct Check {
+    pub matching: usize,
+    pub differing: usize,
+    pub failed: usize,
+}
+
+pub fn run(data_dir: &Path, sample: usize, interval: Duration, log: &mut Log<'_>) -> Result<Check> {
     let source = sources::arin_geofeed_inetnums();
     let file = File::open(source.path(data_dir))?;
     let (ranges, _, _) = src_arin::parse(BufReader::new(file))?;
@@ -54,5 +60,9 @@ pub fn run(data_dir: &Path, sample: usize, interval: Duration, log: &mut Log<'_>
         "arin check: {matching} matching, {differing} differing, {failed} failed, out of {} sampled",
         candidates.len()
     ));
-    Ok(())
+    Ok(Check {
+        matching,
+        differing,
+        failed,
+    })
 }

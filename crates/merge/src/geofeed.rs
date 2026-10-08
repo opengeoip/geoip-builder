@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
-use model::{GeofeedRef, Location, PrefixMap};
+use ipnet::IpNet;
+use model::{Delegation, GeofeedRef, Location, PrefixMap, Registry};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct GeofeedStats {
@@ -9,6 +10,55 @@ pub struct GeofeedStats {
     pub no_country: usize,
     pub not_anchored: usize,
     pub overridden: usize,
+}
+
+fn bounds(network: IpNet) -> (bool, u128, u128) {
+    match network {
+        IpNet::V4(n) => (
+            false,
+            u32::from(n.network()).into(),
+            u32::from(n.broadcast()).into(),
+        ),
+        IpNet::V6(n) => (true, n.network().into(), n.broadcast().into()),
+    }
+}
+
+pub fn anchored_in_their_registry(
+    references: &[(Registry, GeofeedRef)],
+    delegations: &[Delegation],
+) -> (Vec<GeofeedRef>, usize) {
+    let mut spans: BTreeMap<(Registry, bool), Vec<(u128, u128)>> = BTreeMap::new();
+    for delegation in delegations {
+        let (v6, start, end) = bounds(delegation.network);
+        spans
+            .entry((delegation.registry, v6))
+            .or_default()
+            .push((start, end));
+    }
+    for ranges in spans.values_mut() {
+        ranges.sort_unstable();
+        let mut merged: Vec<(u128, u128)> = Vec::with_capacity(ranges.len());
+        for &(start, end) in ranges.iter() {
+            match merged.last_mut() {
+                Some(last) if start <= last.1.saturating_add(1) => last.1 = last.1.max(end),
+                _ => merged.push((start, end)),
+            }
+        }
+        *ranges = merged;
+    }
+    let kept: Vec<GeofeedRef> = references
+        .iter()
+        .filter(|(registry, reference)| {
+            let (v6, start, end) = bounds(reference.network);
+            spans.get(&(*registry, v6)).is_some_and(|ranges| {
+                let index = ranges.partition_point(|(first, _)| *first <= start);
+                index > 0 && ranges[index - 1].1 >= end
+            })
+        })
+        .map(|(_, reference)| reference.clone())
+        .collect();
+    let dropped = references.len() - kept.len();
+    (kept, dropped)
 }
 
 pub fn authorize_geofeeds(
@@ -52,8 +102,6 @@ pub fn authorize_geofeeds(
 
 #[cfg(test)]
 mod tests {
-    use ipnet::IpNet;
-
     use super::*;
 
     fn net(s: &str) -> IpNet {
@@ -68,6 +116,60 @@ mod tests {
             city: None,
             postal: None,
         }
+    }
+
+    fn reference(network: &str, url: &str) -> GeofeedRef {
+        GeofeedRef {
+            network: net(network),
+            url: url.into(),
+        }
+    }
+
+    #[test]
+    fn keeps_anchors_inside_a_delegation_of_their_registry() {
+        let delegation = |network: &str, registry| Delegation {
+            network: net(network),
+            country: "US".into(),
+            registry,
+        };
+        let delegations = [
+            delegation("2.0.0.0/8", Registry::RipeNcc),
+            delegation("3.0.0.0/8", Registry::Arin),
+            delegation("153.79.72.0/21", Registry::Arin),
+            delegation("153.79.72.0/21", Registry::RipeNcc),
+            delegation("5.0.0.0/9", Registry::RipeNcc),
+            delegation("5.128.0.0/9", Registry::RipeNcc),
+        ];
+        let references = [
+            (
+                Registry::RipeNcc,
+                reference("2.152.0.0/16", "https://isp.example/a.csv"),
+            ),
+            (
+                Registry::Lacnic,
+                reference("2.152.34.0/23", "https://other.example/b.csv"),
+            ),
+            (
+                Registry::Arin,
+                reference("2.153.0.0/24", "https://other.example/c.csv"),
+            ),
+            (
+                Registry::RipeNcc,
+                reference("153.79.72.0/24", "https://lir.example/d.csv"),
+            ),
+            (
+                Registry::Arin,
+                reference("4.0.0.0/24", "https://other.example/e.csv"),
+            ),
+            (
+                Registry::RipeNcc,
+                reference("5.0.0.0/8", "https://isp.example/f.csv"),
+            ),
+        ];
+        let (kept, dropped) = anchored_in_their_registry(&references, &delegations);
+        let kept: Vec<String> = kept.iter().map(|r| r.network.to_string()).collect();
+        assert_eq!(kept, ["2.152.0.0/16", "153.79.72.0/24", "5.0.0.0/8"]);
+        assert_eq!(dropped, 3);
     }
 
     #[test]

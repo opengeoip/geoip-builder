@@ -2,13 +2,14 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use model::{Asn, Assignment, GeofeedRef, Location, Registry};
 use src_geofeed::list;
 
 use crate::io::open;
-use crate::{Log, sources};
+use crate::{Log, arin_check, sources};
 
 pub fn geofeed_dir(data_dir: &Path) -> PathBuf {
     data_dir.join("geofeeds")
@@ -83,6 +84,7 @@ pub struct DiscoverOptions<'a> {
     pub output: &'a Path,
     pub manual: Option<&'a Path>,
     pub fetch: bool,
+    pub arin_check_sample: usize,
 }
 
 pub fn discover(options: &DiscoverOptions<'_>, log: &mut Log<'_>) -> Result<()> {
@@ -94,6 +96,18 @@ pub fn discover(options: &DiscoverOptions<'_>, log: &mut Log<'_>) -> Result<()> 
                 .with_context(|| format!("downloading {}", source.name))?;
             log(format!("{}: up to date", source.name));
         }
+    }
+    let check = arin_check::run(
+        options.data_dir,
+        options.arin_check_sample,
+        Duration::from_secs(1),
+        log,
+    )?;
+    if check.differing > 0 {
+        anyhow::bail!(
+            "{} sampled ARIN records differ from RDAP, refusing the ARIN geofeed references",
+            check.differing
+        );
     }
     let Some(manual) = options.manual else {
         return refresh(options.data_dir, options.output, log);
@@ -140,36 +154,32 @@ pub fn geofeed_urls(rows: &[list::Row]) -> Vec<String> {
 }
 
 pub struct Catalog {
-    pub references: Vec<GeofeedRef>,
+    pub references: Vec<(Registry, GeofeedRef)>,
     pub unanchored: BTreeMap<String, BTreeSet<Asn>>,
 }
 
 pub fn catalog(geofeeds: &Path, log: &mut Log<'_>) -> Result<Catalog> {
-    let (ignored, rows): (Vec<list::Row>, Vec<list::Row>) = list::read(geofeeds)?
-        .into_iter()
-        .partition(|row| row.is_manual() && row.network.is_some());
-    let references: Vec<GeofeedRef> = rows
-        .iter()
-        .filter_map(|row| {
-            row.network.map(|network| GeofeedRef {
-                network,
-                url: row.url.clone(),
-            })
-        })
-        .collect();
+    let mut references = Vec::new();
+    let mut ignored = 0;
     let mut unanchored: BTreeMap<String, BTreeSet<Asn>> = BTreeMap::new();
-    for row in rows.iter().filter(|row| row.network.is_none()) {
-        unanchored
-            .entry(row.url.clone())
-            .or_default()
-            .extend(&row.asn);
+    for row in list::read(geofeeds)? {
+        match (row.network, row.source.parse::<Registry>()) {
+            (Some(network), Ok(registry)) => references.push((
+                registry,
+                GeofeedRef {
+                    network,
+                    url: row.url,
+                },
+            )),
+            (Some(_), Err(_)) => ignored += 1,
+            (None, _) => unanchored.entry(row.url).or_default().extend(&row.asn),
+        }
     }
     log(format!(
-        "{}: {} anchored references, {} unanchored geofeeds, {} manual rows with a network ignored",
+        "{}: {} anchored references, {} unanchored geofeeds, {ignored} anchored rows not from a registry ignored",
         geofeeds.display(),
         references.len(),
         unanchored.len(),
-        ignored.len()
     ));
     Ok(Catalog {
         references,
