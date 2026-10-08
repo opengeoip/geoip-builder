@@ -98,7 +98,7 @@ pub fn discover(options: &DiscoverOptions<'_>, log: &mut Log<'_>) -> Result<()> 
     let Some(manual) = options.manual else {
         return refresh(options.data_dir, options.output, log);
     };
-    let manual = list::read(manual)?;
+    let manual = list::read_manual(manual)?;
     let problems = list::problems(&manual);
     if !problems.is_empty() {
         anyhow::bail!("invalid manual rows: {}", problems.join("; "));
@@ -117,8 +117,12 @@ pub struct CheckReport {
     pub anchored: usize,
 }
 
-pub fn check(catalog: &Path) -> Result<CheckReport> {
-    let rows = list::read(catalog)?;
+pub fn check(catalog: &Path, manual: bool) -> Result<CheckReport> {
+    let rows = if manual {
+        list::read_manual(catalog)?
+    } else {
+        list::read(catalog)?
+    };
     let problems = list::problems(&rows);
     if !problems.is_empty() {
         anyhow::bail!("{}: {}", catalog.display(), problems.join("; "));
@@ -141,7 +145,9 @@ pub struct Catalog {
 }
 
 pub fn catalog(geofeeds: &Path, log: &mut Log<'_>) -> Result<Catalog> {
-    let rows = list::read(geofeeds)?;
+    let (ignored, rows): (Vec<list::Row>, Vec<list::Row>) = list::read(geofeeds)?
+        .into_iter()
+        .partition(|row| row.is_manual() && row.network.is_some());
     let references: Vec<GeofeedRef> = rows
         .iter()
         .filter_map(|row| {
@@ -159,10 +165,11 @@ pub fn catalog(geofeeds: &Path, log: &mut Log<'_>) -> Result<Catalog> {
             .extend(&row.asn);
     }
     log(format!(
-        "{}: {} anchored references, {} unanchored geofeeds",
+        "{}: {} anchored references, {} unanchored geofeeds, {} manual rows with a network ignored",
         geofeeds.display(),
         references.len(),
-        unanchored.len()
+        unanchored.len(),
+        ignored.len()
     ));
     Ok(Catalog {
         references,

@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::Result;
-use pipeline::candidates::{Options, Report, add_to_catalog, candidates};
+use pipeline::candidates::{Options, Report, add_to_manual, candidates};
 
 fn write(report: &Report, output: &Path) -> Result<()> {
     if let Some(parent) = output.parent() {
@@ -59,7 +59,7 @@ pub fn run(options: &Options<'_>, output: &Path, add_to: Option<&Path>) -> Resul
     if let Some(manual) = add_to
         && !report.new_geofeeds.is_empty()
     {
-        let count = add_to_catalog(manual, report.new_geofeeds)?;
+        let count = add_to_manual(manual, report.new_geofeeds)?;
         eprintln!("{}: {count} rows", manual.display());
     }
     Ok(())
