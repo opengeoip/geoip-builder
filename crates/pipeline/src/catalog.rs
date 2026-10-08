@@ -98,7 +98,7 @@ pub fn discover(options: &DiscoverOptions<'_>, log: &mut Log<'_>) -> Result<()> 
     let Some(manual) = options.manual else {
         return refresh(options.data_dir, options.output, log);
     };
-    let manual = list::read(manual)?;
+    let manual = list::read_manual(manual)?;
     let problems = list::problems(&manual);
     if !problems.is_empty() {
         anyhow::bail!("invalid manual rows: {}", problems.join("; "));
@@ -117,8 +117,12 @@ pub struct CheckReport {
     pub anchored: usize,
 }
 
-pub fn check(catalog: &Path) -> Result<CheckReport> {
-    let rows = list::read(catalog)?;
+pub fn check(catalog: &Path, manual: bool) -> Result<CheckReport> {
+    let rows = if manual {
+        list::read_manual(catalog)?
+    } else {
+        list::read(catalog)?
+    };
     let problems = list::problems(&rows);
     if !problems.is_empty() {
         anyhow::bail!("{}: {}", catalog.display(), problems.join("; "));

@@ -24,14 +24,18 @@ Geofeeds are downloaded over HTTP or HTTPS without checking certificates. Trust 
 
 The list of geofeeds lives in [opengeoip/geofeeds](https://github.com/opengeoip/geofeeds). Every day, a workflow there runs `discover` on the latest registry dumps, adds the hand-maintained `manual.csv`, and publishes the result as a release. `fetch` downloads the latest one.
 
+`manual.csv` has two columns, `url` and `asn`: the geofeed and the ASes of its publisher, separated by spaces. To add a geofeed, open a pull request with a line such as `https://example.net/geofeed.csv,64500 64501`. List only ASes whose registry records name the publisher: its entries are trusted for nothing else.
+
+The published catalog has four columns:
+
 | Column | Content |
 |---|---|
 | `url` | the geofeed |
-| `network` | the prefix of the registry object referencing it, empty for an unanchored geofeed and always empty for a `manual` row |
+| `network` | the prefix of the registry object referencing it, empty for a `manual` geofeed |
 | `source` | the registry it was found in, or `manual` |
-| `asn` | for an unanchored geofeed, the ASes of its publisher, separated by spaces |
+| `asn` | for a `manual` geofeed, the ASes of its publisher |
 
-To add a geofeed, open a pull request on `manual.csv` with a line such as `https://example.net/geofeed.csv,,manual,64500 64501`. List only ASes whose registry records name the publisher: an unanchored geofeed is trusted for nothing else. Only registries anchor a geofeed on a prefix: `build` ignores a `manual` row with a `network`, since nothing proves who wrote it, and `check-catalog` rejects it.
+Only registries anchor a geofeed on a prefix: `build` ignores a `manual` row with a `network`, since nothing proves who wrote it, and `check-catalog` rejects it.
 
 ## ASN
 

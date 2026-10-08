@@ -93,6 +93,8 @@ enum Command {
         fetch: bool,
     },
     CheckCatalog {
+        #[arg(long)]
+        manual: bool,
         #[arg(required = true)]
         catalogs: Vec<PathBuf>,
     },
@@ -164,9 +166,9 @@ enum Command {
     },
 }
 
-fn check_catalogs(catalogs: &[PathBuf]) -> Result<()> {
+fn check_catalogs(catalogs: &[PathBuf], manual: bool) -> Result<()> {
     for catalog in catalogs {
-        let report = pipeline::catalog::check(catalog)?;
+        let report = pipeline::catalog::check(catalog, manual)?;
         println!(
             "{}: {} rows, {} geofeeds, {} anchored rows",
             catalog.display(),
@@ -209,7 +211,7 @@ fn main() -> Result<()> {
             },
             &mut log,
         ),
-        Command::CheckCatalog { catalogs } => check_catalogs(&catalogs),
+        Command::CheckCatalog { catalogs, manual } => check_catalogs(&catalogs, manual),
         Command::Build { data, out_dir } => {
             let catalog = data.catalog();
             pipeline::build::build(&data.inputs(&catalog), &out_dir, &mut log)

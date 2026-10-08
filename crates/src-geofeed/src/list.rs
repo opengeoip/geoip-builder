@@ -5,6 +5,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use ipnet::IpNet;
 use model::Asn;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub const MANUAL: &str = "manual";
@@ -38,6 +39,28 @@ fn deserialize_asns<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<As
     Ok(asns)
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct ManualRow {
+    pub url: String,
+    #[serde(
+        default,
+        serialize_with = "serialize_asns",
+        deserialize_with = "deserialize_asns"
+    )]
+    pub asn: Vec<Asn>,
+}
+
+impl From<ManualRow> for Row {
+    fn from(row: ManualRow) -> Self {
+        Row {
+            url: row.url,
+            network: None,
+            source: MANUAL.to_string(),
+            asn: row.asn,
+        }
+    }
+}
+
 impl Row {
     pub fn is_manual(&self) -> bool {
         self.source == MANUAL
@@ -45,6 +68,15 @@ impl Row {
 }
 
 pub fn read(path: &Path) -> Result<Vec<Row>> {
+    read_csv(path)
+}
+
+pub fn read_manual(path: &Path) -> Result<Vec<Row>> {
+    let rows: Vec<ManualRow> = read_csv(path)?;
+    Ok(rows.into_iter().map(Row::from).collect())
+}
+
+fn read_csv<T: DeserializeOwned>(path: &Path) -> Result<Vec<T>> {
     if !path.exists() {
         return Ok(Vec::new());
     }
@@ -61,7 +93,21 @@ pub fn read(path: &Path) -> Result<Vec<Row>> {
 }
 
 pub fn write(path: &Path, rows: impl IntoIterator<Item = Row>) -> Result<usize> {
-    let rows: BTreeSet<Row> = rows.into_iter().collect();
+    write_csv(path, rows)
+}
+
+pub fn write_manual(path: &Path, rows: impl IntoIterator<Item = Row>) -> Result<usize> {
+    write_csv(
+        path,
+        rows.into_iter().map(|row| ManualRow {
+            url: row.url,
+            asn: row.asn,
+        }),
+    )
+}
+
+fn write_csv<T: Serialize + Ord>(path: &Path, rows: impl IntoIterator<Item = T>) -> Result<usize> {
+    let rows: BTreeSet<T> = rows.into_iter().collect();
     let partial = path.with_extension("csv.part");
     {
         let mut writer = csv::Writer::from_path(&partial)?;
@@ -197,6 +243,29 @@ mod tests {
                     "arin"
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn reads_and_writes_manual_lists() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("manual.csv");
+        fs::write(
+            &path,
+            "url,asn\n\
+             # added by hand\n\
+             https://cloud.example/feed.csv,64501 64500\n",
+        )
+        .unwrap();
+        let rows = read_manual(&path).unwrap();
+        assert_eq!(
+            rows,
+            [listed("https://cloud.example/feed.csv", &[64500, 64501])]
+        );
+        write_manual(&path, rows).unwrap();
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "url,asn\nhttps://cloud.example/feed.csv,64500 64501\n"
         );
     }
 

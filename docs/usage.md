@@ -32,7 +32,7 @@ geoip-builder discover --fetch --manual manual.csv --output geofeeds.csv
 geoip-builder check-catalog geofeeds.csv
 ```
 
-`discover` lists every geofeed referenced in the registry dumps, adds the rows of `--manual`, and writes the catalog. `--fetch` downloads only the dumps it needs. Pass the result to `--geofeeds` to use it instead of the published one; a local catalog given to `fetch` is refreshed in place, keeping its `manual` rows. `check-catalog` validates catalog files.
+`discover` lists every geofeed referenced in the registry dumps, adds the rows of `--manual`, and writes the catalog. `--fetch` downloads only the dumps it needs. Pass the result to `--geofeeds` to use it instead of the published one; a local catalog given to `fetch` is refreshed in place, keeping its `manual` rows. `check-catalog` validates catalog files, or `manual.csv` files with `--manual`.
 
 ## Looking up addresses
 
