@@ -5,7 +5,7 @@ mod location;
 
 pub use asn::{AsnStats, RpkiPolicy, SelectedRoute, asn_db, select_origins};
 pub use geofeed::{GeofeedStats, authorize_geofeeds};
-pub use listed::{ListedFeed, authorize_listed_geofeeds};
+pub use listed::{ListedFeed, ListedGeofeed, authorize_listed_geofeeds};
 pub use location::{LocationStats, location_dbs};
 
 use mmdb_writer::Writer;

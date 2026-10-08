@@ -4,7 +4,8 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use ipnet::IpNet;
-use serde::{Deserialize, Serialize};
+use model::Asn;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub const MANUAL: &str = "manual";
 
@@ -13,6 +14,28 @@ pub struct Row {
     pub url: String,
     pub network: Option<IpNet>,
     pub source: String,
+    #[serde(
+        default,
+        serialize_with = "serialize_asns",
+        deserialize_with = "deserialize_asns"
+    )]
+    pub asn: Vec<Asn>,
+}
+
+fn serialize_asns<S: Serializer>(asns: &[Asn], serializer: S) -> Result<S::Ok, S::Error> {
+    let text: Vec<String> = asns.iter().map(Asn::to_string).collect();
+    serializer.serialize_str(&text.join(" "))
+}
+
+fn deserialize_asns<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Asn>, D::Error> {
+    let text = String::deserialize(deserializer)?;
+    let mut asns = text
+        .split_whitespace()
+        .map(|asn| asn.parse().map_err(serde::de::Error::custom))
+        .collect::<Result<Vec<Asn>, _>>()?;
+    asns.sort_unstable();
+    asns.dedup();
+    Ok(asns)
 }
 
 impl Row {
@@ -72,6 +95,14 @@ pub fn problems(rows: &[Row]) -> Vec<String> {
                     .is_empty()
                     .then(|| format!("{}: empty source", row.url))
             })
+            .or_else(|| {
+                (row.network.is_none() && row.asn.is_empty())
+                    .then(|| format!("{}: unanchored geofeed without asn", row.url))
+            })
+            .or_else(|| {
+                (row.network.is_some() && !row.asn.is_empty())
+                    .then(|| format!("{}: asn set on an anchored geofeed", row.url))
+            })
         })
         .collect()
 }
@@ -85,21 +116,43 @@ mod tests {
             url: url.into(),
             network: network.map(|n| n.parse().unwrap()),
             source: source.into(),
+            asn: Vec::new(),
+        }
+    }
+
+    fn listed(url: &str, asn: &[Asn]) -> Row {
+        Row {
+            asn: asn.to_vec(),
+            ..row(url, None, MANUAL)
         }
     }
 
     #[test]
     fn reports_invalid_rows() {
         let rows = [
-            row("https://a.example/feed.csv", None, "manual"),
-            row("ftp://b.example/feed.csv", None, "manual"),
-            row("https://c.example/feed.csv", None, ""),
+            listed("https://a.example/feed.csv", &[64500]),
+            listed("ftp://b.example/feed.csv", &[64500]),
+            Row {
+                source: String::new(),
+                ..listed("https://c.example/feed.csv", &[64500])
+            },
+            row("https://d.example/feed.csv", None, "manual"),
+            Row {
+                asn: vec![64500],
+                ..row(
+                    "https://e.example/feed.csv",
+                    Some("192.0.2.0/24"),
+                    "ripencc",
+                )
+            },
         ];
         assert_eq!(
             problems(&rows),
             [
                 "invalid URL \"ftp://b.example/feed.csv\"",
-                "https://c.example/feed.csv: empty source"
+                "https://c.example/feed.csv: empty source",
+                "https://d.example/feed.csv: unanchored geofeed without asn",
+                "https://e.example/feed.csv: asn set on an anchored geofeed",
             ]
         );
     }
@@ -110,11 +163,11 @@ mod tests {
         let path = dir.path().join("geofeeds.csv");
         fs::write(
             &path,
-            "url,network,source\n\
+            "url,network,source,asn\n\
              # added by hand\n\
-             https://cloud.example/feed.csv,,manual\n\
-             https://isp.example/feed.csv, 192.0.2.0/24 ,manual\n\
-             https://old.example/feed.csv,198.51.100.0/24,ripencc\n",
+             https://cloud.example/feed.csv,,manual,64501 64500 64501\n\
+             https://isp.example/feed.csv, 192.0.2.0/24 ,manual,\n\
+             https://old.example/feed.csv,198.51.100.0/24,ripencc,\n",
         )
         .unwrap();
         let count = merge_discovered(
@@ -130,7 +183,7 @@ mod tests {
         assert_eq!(
             read(&path).unwrap(),
             [
-                row("https://cloud.example/feed.csv", None, "manual"),
+                listed("https://cloud.example/feed.csv", &[64500, 64501]),
                 row(
                     "https://isp.example/feed.csv",
                     Some("192.0.2.0/24"),
@@ -142,6 +195,21 @@ mod tests {
                     "arin"
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn reads_catalogs_without_the_asn_column() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("geofeeds.csv");
+        fs::write(
+            &path,
+            "url,network,source\nhttps://cloud.example/feed.csv,,manual\n",
+        )
+        .unwrap();
+        assert_eq!(
+            read(&path).unwrap(),
+            [row("https://cloud.example/feed.csv", None, "manual")]
         );
     }
 }

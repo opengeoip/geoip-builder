@@ -169,12 +169,16 @@ pub fn candidates(options: &Options<'_>) -> Result<Report> {
     })
 }
 
-pub fn add_to_catalog(geofeeds: &Path, urls: impl IntoIterator<Item = String>) -> Result<usize> {
+pub fn add_to_catalog(
+    geofeeds: &Path,
+    found: impl IntoIterator<Item = (u32, String)>,
+) -> Result<usize> {
     let mut rows = list::read(geofeeds)?;
-    rows.extend(urls.into_iter().map(|url| list::Row {
+    rows.extend(found.into_iter().map(|(asn, url)| list::Row {
         url,
         network: None,
         source: list::MANUAL.to_string(),
+        asn: vec![asn],
     }));
     list::write(geofeeds, rows)
 }

@@ -16,7 +16,7 @@ Each address gets the country of the most precise source that knows about it. Th
 A geofeed is a CSV file in which an operator says where its prefixes are ([RFC 8805](https://www.rfc-editor.org/rfc/rfc8805)). Anyone can publish one, so an entry is only kept when its publisher owns the prefix:
 
 - **Registry geofeeds** follow [RFC 9632](https://www.rfc-editor.org/rfc/rfc9632): the registry object that covers the entry most precisely must point to that geofeed. An entry outside the referencing object, or inside a more precise object pointing elsewhere, is dropped. Common variants of the `Geofeed` remark are accepted.
-- **Unanchored geofeeds** are published by operators who do not reference them from the registry, such as AWS or Google. Their publisher is inferred from BGP: the AS announcing most of the feed's prefixes, plus the ASes whose names share a distinctive word with it (`AMAZON-02` and `AMAZON-EXPANSION`). Entries announced by anyone else, such as a customer's own addresses, are dropped. An entry wider than any announced route, such as an AWS /13 announced only as four more specific prefixes, is kept when every route inside it belongs to the publisher.
+- **Unanchored geofeeds** are published by operators who do not reference them from the registry, such as AWS or Google. The catalog declares the ASes of their publisher, and only entries announced by one of them are kept: a feed cannot describe someone else's network, such as a customer's own addresses. An entry wider than any announced route, such as an AWS /13 announced only as four more specific prefixes, is kept when every route inside it belongs to a declared AS. `build` logs, for each feed, the undeclared origins of the entries it dropped.
 
 Geofeeds are downloaded over HTTP or HTTPS without checking certificates. Trust comes from the registry object, not from the transport, and the ownership check limits what a tampered file could claim. Every other source is downloaded with certificate checks.
 
@@ -29,8 +29,9 @@ The list of geofeeds lives in [opengeoip/geofeeds](https://github.com/opengeoip/
 | `url` | the geofeed |
 | `network` | the prefix of the registry object referencing it, empty for an unanchored geofeed |
 | `source` | the registry it was found in, or `manual` |
+| `asn` | for an unanchored geofeed, the ASes of its publisher, separated by spaces |
 
-To add a geofeed, open a pull request on `manual.csv` with a line such as `https://example.net/geofeed.csv,,manual`.
+To add a geofeed, open a pull request on `manual.csv` with a line such as `https://example.net/geofeed.csv,,manual,64500 64501`. List only ASes whose registry records name the publisher: an unanchored geofeed is trusted for nothing else.
 
 ## ASN
 

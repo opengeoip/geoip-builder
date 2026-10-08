@@ -1,10 +1,10 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use model::{Assignment, GeofeedRef, Location, Registry};
+use model::{Asn, Assignment, GeofeedRef, Location, Registry};
 use src_geofeed::list;
 
 use crate::io::open;
@@ -67,6 +67,7 @@ fn discovered(data_dir: &Path, log: &mut Log<'_>) -> Result<Vec<list::Row>> {
             url: reference.url,
             network: Some(reference.network),
             source: registry.as_str().to_string(),
+            asn: Vec::new(),
         })
         .collect())
 }
@@ -136,7 +137,7 @@ pub fn geofeed_urls(rows: &[list::Row]) -> Vec<String> {
 
 pub struct Catalog {
     pub references: Vec<GeofeedRef>,
-    pub unanchored: Vec<String>,
+    pub unanchored: BTreeMap<String, BTreeSet<Asn>>,
 }
 
 pub fn catalog(geofeeds: &Path, log: &mut Log<'_>) -> Result<Catalog> {
@@ -150,11 +151,13 @@ pub fn catalog(geofeeds: &Path, log: &mut Log<'_>) -> Result<Catalog> {
             })
         })
         .collect();
-    let unanchored: BTreeSet<&str> = rows
-        .iter()
-        .filter(|row| row.network.is_none())
-        .map(|row| row.url.as_str())
-        .collect();
+    let mut unanchored: BTreeMap<String, BTreeSet<Asn>> = BTreeMap::new();
+    for row in rows.iter().filter(|row| row.network.is_none()) {
+        unanchored
+            .entry(row.url.clone())
+            .or_default()
+            .extend(&row.asn);
+    }
     log(format!(
         "{}: {} anchored references, {} unanchored geofeeds",
         geofeeds.display(),
@@ -163,7 +166,7 @@ pub fn catalog(geofeeds: &Path, log: &mut Log<'_>) -> Result<Catalog> {
     ));
     Ok(Catalog {
         references,
-        unanchored: unanchored.into_iter().map(str::to_string).collect(),
+        unanchored,
     })
 }
 
