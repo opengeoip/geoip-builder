@@ -62,4 +62,4 @@ geoip-builder candidates --add-to manual.csv
 
 `coverage` writes `out/geofeed-coverage.csv`: for each AS, how much of its announced space no geofeed covers.
 
-`candidates` lists, AS by AS, the Atlas probes the country database gets wrong, with the network's website from PeeringDB, in `out/geofeed-candidates.csv`. For the first 50 (`--probe`), it tries the usual geofeed locations on the website, such as `/geofeed.csv` or `geofeed.<domain>`. `--add-to manual.csv` appends the geofeeds it finds to a manual list, ready for a pull request to [opengeoip/geofeeds](https://github.com/opengeoip/geofeeds).
+`candidates` lists, AS by AS, the Atlas probes the country database gets wrong, with the network's website from PeeringDB, in `out/geofeed-candidates.csv`. For the first 50 (`--probe`), it tries the usual geofeed locations on the website, such as `/geofeed.csv` or `geofeed.<domain>`. `--add-to manual.csv` appends the geofeeds it finds to a manual list, each declared for the AS it was found for, ready for a pull request to [opengeoip/geofeeds](https://github.com/opengeoip/geofeeds).

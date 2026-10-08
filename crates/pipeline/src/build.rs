@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::Path;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -102,31 +102,41 @@ pub fn anchored_geofeeds(
 
 pub fn listed_geofeeds(
     data_dir: &Path,
-    urls: &[String],
+    unanchored: &BTreeMap<String, BTreeSet<Asn>>,
     selected: &[merge::SelectedRoute],
-    names: &HashMap<Asn, AsName>,
     log: &mut Log<'_>,
 ) -> Vec<Location> {
     let dir = geofeed_dir(data_dir);
-    let feeds: Vec<(String, Vec<Location>)> = urls
+    let feeds: Vec<merge::ListedGeofeed> = unanchored
         .iter()
-        .filter_map(|url| read_feed(&dir, url).map(|locations| (url.clone(), locations)))
+        .filter_map(|(url, asns)| {
+            read_feed(&dir, url).map(|locations| merge::ListedGeofeed {
+                url: url.clone(),
+                asns: asns.iter().copied().collect(),
+                locations,
+            })
+        })
         .collect();
     let origins: PrefixMap<Asn> = selected.iter().map(|r| (r.prefix, r.asn)).collect();
-    let (listed, reports) = merge::authorize_listed_geofeeds(&feeds, &origins, names);
+    let (listed, reports) = merge::authorize_listed_geofeeds(&feeds, &origins);
     for report in &reports {
-        let publishers: Vec<String> = report
-            .publishers
+        let undeclared: Vec<String> = report
+            .undeclared
             .iter()
-            .map(|asn| format!("AS{asn}"))
+            .take(5)
+            .map(|(asn, count)| format!("AS{asn} ({count})"))
             .collect();
         log(format!(
-            "listed geofeed {}: {} entries, {} accepted, {} unrouted, publisher {}",
+            "listed geofeed {}: {} entries, {} accepted, {} unrouted, undeclared origins: {}",
             report.url,
             report.entries,
             report.accepted,
             report.unrouted,
-            publishers.join(" ")
+            if undeclared.is_empty() {
+                "none".to_string()
+            } else {
+                undeclared.join(" ")
+            }
         ));
     }
     listed
@@ -141,7 +151,7 @@ pub fn prepare(inputs: &Inputs<'_>, log: &mut Log<'_>) -> Result<Prepared> {
     let assignments = catalog::rpsl_records(inputs.data_dir, log)?.assignments;
     let catalog = catalog::catalog(inputs.geofeeds, log)?;
     let anchored = anchored_geofeeds(inputs.data_dir, &catalog.references, log);
-    let listed = listed_geofeeds(inputs.data_dir, &catalog.unanchored, &selected, &names, log);
+    let listed = listed_geofeeds(inputs.data_dir, &catalog.unanchored, &selected, log);
     Ok(Prepared {
         epoch,
         policy: inputs.policy,

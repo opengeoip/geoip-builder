@@ -59,7 +59,7 @@ pub fn run(options: &Options<'_>, output: &Path, add_to: Option<&Path>) -> Resul
     if let Some(manual) = add_to
         && !report.new_geofeeds.is_empty()
     {
-        let count = add_to_catalog(manual, report.new_geofeeds.into_iter().map(|(_, url)| url))?;
+        let count = add_to_catalog(manual, report.new_geofeeds)?;
         eprintln!("{}: {count} rows", manual.display());
     }
     Ok(())
