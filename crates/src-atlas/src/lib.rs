@@ -7,6 +7,7 @@ use bzip2::read::MultiBzDecoder;
 use serde::Deserialize;
 
 const CONNECTED: u8 = 1;
+const AUTO_LOCATED: [&str; 2] = ["system-auto-geoip-country", "system-auto-geoip-city"];
 
 #[derive(Deserialize)]
 struct Archive {
@@ -21,6 +22,10 @@ struct RawProbe {
     country_code: Option<String>,
     address_v4: Option<IpAddr>,
     address_v6: Option<IpAddr>,
+    asn_v4: Option<u32>,
+    asn_v6: Option<u32>,
+    #[serde(default)]
+    tags: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -29,6 +34,8 @@ pub struct Probe {
     pub address: IpAddr,
     pub country: String,
     pub is_anchor: bool,
+    pub asn: Option<u32>,
+    pub auto_located: bool,
 }
 
 pub fn parse<R: Read>(reader: R) -> Result<Vec<Probe>> {
@@ -61,12 +68,18 @@ pub fn parse_json<R: Read>(reader: R) -> Result<Vec<Probe>> {
         if raw.status != CONNECTED {
             continue;
         }
-        for address in [raw.address_v4, raw.address_v6].into_iter().flatten() {
+        let auto_located = raw.tags.iter().any(|t| AUTO_LOCATED.contains(&t.as_str()));
+        for (address, asn) in [(raw.address_v4, raw.asn_v4), (raw.address_v6, raw.asn_v6)] {
+            let Some(address) = address else {
+                continue;
+            };
             probes.push(Probe {
                 id: raw.id,
                 address,
                 country: country.to_ascii_uppercase(),
                 is_anchor: raw.is_anchor,
+                asn,
+                auto_located,
             });
         }
     }
@@ -86,7 +99,7 @@ mod tests {
     #[test]
     fn keeps_connected_probes_with_public_addresses() {
         let input = r#"{"meta":{},"objects":[
-            {"id":43,"status":1,"is_anchor":false,"country_code":"FR","address_v4":"77.95.64.208","address_v6":"2a03:9180:1:20::1"},
+            {"id":43,"status":1,"is_anchor":false,"country_code":"FR","address_v4":"77.95.64.208","address_v6":"2a03:9180:1:20::1","asn_v4":3215,"asn_v6":5410,"tags":["home","system-auto-geoip-city"]},
             {"id":2,"status":3,"is_anchor":false,"country_code":"RS","address_v4":"1.2.3.4","address_v6":null},
             {"id":7,"status":1,"is_anchor":true,"country_code":"de","address_v4":null,"address_v6":null},
             {"id":9,"status":1,"is_anchor":true,"country_code":"nl","address_v4":"193.0.0.1","address_v6":null}
@@ -94,14 +107,19 @@ mod tests {
         let probes = parse_json(input.as_bytes()).unwrap();
         let summary: Vec<String> = probes
             .iter()
-            .map(|p| format!("{} {} {} {}", p.id, p.address, p.country, p.is_anchor))
+            .map(|p| {
+                format!(
+                    "{} {} {} {} {:?} {}",
+                    p.id, p.address, p.country, p.is_anchor, p.asn, p.auto_located
+                )
+            })
             .collect();
         assert_eq!(
             summary,
             [
-                "43 77.95.64.208 FR false",
-                "43 2a03:9180:1:20::1 FR false",
-                "9 193.0.0.1 NL true"
+                "43 77.95.64.208 FR false Some(3215) true",
+                "43 2a03:9180:1:20::1 FR false Some(5410) true",
+                "9 193.0.0.1 NL true None false"
             ]
         );
     }
