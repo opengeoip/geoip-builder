@@ -149,6 +149,8 @@ enum Command {
         keep_suspicious: bool,
         #[arg(long, default_value_t = 10)]
         top: usize,
+        #[arg(long)]
+        json: Option<PathBuf>,
         #[arg(required = true)]
         databases: Vec<PathBuf>,
     },
@@ -255,6 +257,7 @@ fn main() -> Result<()> {
             only,
             keep_suspicious,
             top,
+            json,
             databases,
         } => evaluate::run(
             &evaluate::Options {
@@ -263,6 +266,7 @@ fn main() -> Result<()> {
                 only: only.as_deref(),
                 keep_suspicious,
                 top,
+                json: json.as_deref(),
             },
             &databases,
         ),

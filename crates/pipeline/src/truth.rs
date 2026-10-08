@@ -46,6 +46,7 @@ pub struct Excluded {
     pub listed: usize,
     pub misplaced: usize,
     pub anycast: usize,
+    pub auto_located: usize,
 }
 
 pub fn reliable(data_dir: &Path, probes: Vec<Probe>) -> Result<(Vec<Probe>, Excluded)> {
@@ -55,6 +56,7 @@ pub fn reliable(data_dir: &Path, probes: Vec<Probe>) -> Result<(Vec<Probe>, Excl
         listed: violating.len(),
         misplaced: 0,
         anycast: 0,
+        auto_located: 0,
     };
     let kept = probes
         .into_iter()
@@ -64,6 +66,9 @@ pub fn reliable(data_dir: &Path, probes: Vec<Probe>) -> Result<(Vec<Probe>, Excl
                 false
             } else if anycast.longest_match(IpNet::from(probe.address)).is_some() {
                 excluded.anycast += 1;
+                false
+            } else if probe.auto_located {
+                excluded.auto_located += 1;
                 false
             } else {
                 true

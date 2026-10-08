@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use maxminddb::Reader;
+use model::continent::{Continent, continent};
 use src_atlas::Probe;
 
 use crate::lookup;
@@ -46,6 +47,84 @@ pub fn groups() -> Vec<Group> {
             })
         })
         .collect()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Network {
+    Access,
+    Transit,
+    Content,
+    Other,
+    Unknown,
+    Unrouted,
+}
+
+impl Network {
+    pub const ALL: [Network; 6] = [
+        Network::Access,
+        Network::Transit,
+        Network::Content,
+        Network::Other,
+        Network::Unknown,
+        Network::Unrouted,
+    ];
+
+    pub fn from_peeringdb(info_type: Option<&str>) -> Network {
+        match info_type {
+            Some("Cable/DSL/ISP") => Network::Access,
+            Some("NSP") => Network::Transit,
+            Some("Content") => Network::Content,
+            None | Some("") => Network::Unknown,
+            Some(_) => Network::Other,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Network::Access => "access",
+            Network::Transit => "transit",
+            Network::Content => "content",
+            Network::Other => "other",
+            Network::Unknown => "unknown",
+            Network::Unrouted => "unrouted",
+        }
+    }
+}
+
+pub struct Bucket<'a> {
+    pub label: &'static str,
+    pub probes: Vec<&'a Probe>,
+}
+
+fn buckets<'a, K: Copy + Eq>(
+    probes: &[&'a Probe],
+    keys: impl IntoIterator<Item = (K, &'static str)>,
+    key: impl Fn(&Probe) -> K,
+) -> Vec<Bucket<'a>> {
+    keys.into_iter()
+        .map(|(k, label)| Bucket {
+            label,
+            probes: probes.iter().copied().filter(|p| key(p) == k).collect(),
+        })
+        .filter(|b| !b.probes.is_empty())
+        .collect()
+}
+
+pub fn by_network<'a>(probes: &[&'a Probe], networks: &HashMap<u32, Network>) -> Vec<Bucket<'a>> {
+    buckets(probes, Network::ALL.map(|n| (n, n.as_str())), |p| {
+        match p.asn {
+            None => Network::Unrouted,
+            Some(asn) => networks.get(&asn).copied().unwrap_or(Network::Unknown),
+        }
+    })
+}
+
+pub fn by_continent<'a>(probes: &[&'a Probe]) -> Vec<Bucket<'a>> {
+    let keys = Continent::ALL
+        .map(|c| (Some(c), c.name()))
+        .into_iter()
+        .chain([(None, "unknown")]);
+    buckets(probes, keys, |p| continent(&p.country))
 }
 
 pub fn answers(reader: &Reader<Vec<u8>>, probes: &[&Probe]) -> Result<Vec<Option<String>>> {
@@ -135,6 +214,8 @@ mod tests {
             address: address.parse().unwrap(),
             country: country.into(),
             is_anchor,
+            asn: Some(id),
+            auto_located: false,
         }
     }
 
@@ -215,5 +296,49 @@ mod tests {
         let counts: Vec<usize> = groups.iter().map(|g| g.select(&probes).len()).collect();
         assert_eq!(counts, [2, 1, 1, 1, 1, 0]);
         assert!(groups[0].is_detailed() && !groups[1].is_detailed());
+    }
+
+    #[test]
+    fn breaks_probes_down_by_network_and_continent() {
+        let probes = [
+            probe(1, "192.0.2.1", "FR", false),
+            probe(2, "192.0.2.2", "BR", false),
+            probe(3, "192.0.2.3", "FR", false),
+            probe(4, "192.0.2.4", "XK", false),
+            Probe {
+                asn: None,
+                ..probe(5, "192.0.2.5", "FR", false)
+            },
+        ];
+        let selected: Vec<&Probe> = probes.iter().collect();
+        let networks = HashMap::from([
+            (1, Network::from_peeringdb(Some("Cable/DSL/ISP"))),
+            (2, Network::from_peeringdb(Some("Content"))),
+            (3, Network::from_peeringdb(Some("Educational/Research"))),
+        ]);
+        let summary = |buckets: Vec<Bucket<'_>>| -> Vec<(&str, Vec<u32>)> {
+            buckets
+                .into_iter()
+                .map(|b| (b.label, b.probes.iter().map(|p| p.id).collect()))
+                .collect()
+        };
+        assert_eq!(
+            summary(by_network(&selected, &networks)),
+            [
+                ("access", vec![1]),
+                ("content", vec![2]),
+                ("other", vec![3]),
+                ("unknown", vec![4]),
+                ("unrouted", vec![5])
+            ]
+        );
+        assert_eq!(
+            summary(by_continent(&selected)),
+            [
+                ("Europe", vec![1, 3, 5]),
+                ("South America", vec![2]),
+                ("unknown", vec![4])
+            ]
+        );
     }
 }
