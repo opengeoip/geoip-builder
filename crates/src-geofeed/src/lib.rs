@@ -1,5 +1,6 @@
 pub mod list;
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::BufRead;
 use std::sync::Mutex;
@@ -38,13 +39,36 @@ pub fn parse<R: BufRead>(mut reader: R) -> Result<(Vec<Location>, ParseStats)> {
     Ok((locations, stats))
 }
 
-fn field(fields: &[&str], index: usize) -> Option<String> {
+fn split_fields(line: &str) -> Vec<Cow<'_, str>> {
+    if !line.contains('"') {
+        return line.split(',').map(Cow::Borrowed).collect();
+    }
+    let mut fields = Vec::new();
+    let mut field = String::new();
+    let mut quoted = false;
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' if quoted && chars.peek() == Some(&'"') => {
+                field.push('"');
+                chars.next();
+            }
+            '"' => quoted = !quoted,
+            ',' if !quoted => fields.push(Cow::Owned(std::mem::take(&mut field))),
+            _ => field.push(c),
+        }
+    }
+    fields.push(Cow::Owned(field));
+    fields
+}
+
+fn field(fields: &[Cow<'_, str>], index: usize) -> Option<String> {
     let value = fields.get(index)?.trim();
     (!value.is_empty()).then(|| value.to_string())
 }
 
 fn parse_line(line: &str) -> Option<Location> {
-    let fields: Vec<&str> = line.split(',').collect();
+    let fields = split_fields(line);
     let network: IpNet = fields[0].trim().parse().ok()?;
     let country = match field(&fields, 1) {
         Some(code) => {
@@ -163,13 +187,14 @@ mod tests {
                      2001:db8::/32,de,DE-BE,Berlin,\n\
                      192.0.2.0/24,,,,\n\
                      198.51.100.0/24,FR,BOGUS,,  # trailing comment\n\
+                     52.144.102.218/32,\"US\",US-TX,\"Lampasas, TX\",\"76\"\"550\"\n\
                      not-a-prefix,FR,,,\n\
                      203.0.113.0/24,FRA,,,\n";
         let (locations, stats) = parse(input.as_bytes()).unwrap();
         assert_eq!(
             stats,
             ParseStats {
-                entries: 4,
+                entries: 5,
                 invalid: 2
             }
         );
@@ -181,6 +206,9 @@ mod tests {
         assert_eq!(locations[1].postal, None);
         assert_eq!(locations[2].country, None);
         assert_eq!(locations[3].region, None);
+        assert_eq!(locations[4].city.as_deref(), Some("Lampasas, TX"));
+        assert_eq!(locations[4].country.as_deref(), Some("US"));
+        assert_eq!(locations[4].postal.as_deref(), Some("76\"550"));
     }
 
     #[test]
