@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2](https://github.com/opengeoip/geoip-builder/compare/v0.4.1...v0.4.2) - 2026-10-09
+
+### Fixed
+
+- bound the text geofeeds put in the databases ([#39](https://github.com/opengeoip/geoip-builder/pull/39))
+- keep only ISO 3166-1 countries from geofeeds ([#38](https://github.com/opengeoip/geoip-builder/pull/38))
+- read quoted geofeed fields ([#37](https://github.com/opengeoip/geoip-builder/pull/37))
+
 ## [0.4.1](https://github.com/opengeoip/geoip-builder/compare/v0.4.0...v0.4.1) - 2026-10-08
 
 ### Fixed
