@@ -38,6 +38,18 @@ pub const ACCESS_TAGS: [&str; 17] = [
     "mobile",
 ];
 
+pub const OPERATOR_TYPES: [&str; 4] = [
+    "Cable/DSL/ISP",
+    "Educational/Research",
+    "Non-Profit",
+    "Government",
+];
+
+pub fn operator_network(types: &[String]) -> bool {
+    let has = |t: &str| types.iter().any(|x| x == t);
+    !has("Content") && OPERATOR_TYPES.iter().any(|t| has(t))
+}
+
 pub fn hosted(probe: &Probe) -> Option<bool> {
     let has = |tags: &[&str]| probe.tags.iter().any(|t| tags.contains(&t.as_str()));
     match (has(&HOSTED_TAGS), has(&ACCESS_TAGS)) {
@@ -53,6 +65,7 @@ pub struct HostingScore {
     pub false_positive: usize,
     pub false_negative: usize,
     pub true_negative: usize,
+    pub operator_datacentres: usize,
     pub false_positive_ases: Vec<(u32, usize)>,
     pub false_negative_ases: Vec<(u32, usize)>,
 }
@@ -60,6 +73,10 @@ pub struct HostingScore {
 impl HostingScore {
     pub fn precision(&self) -> f64 {
         ratio(self.true_positive, self.true_positive + self.false_positive)
+    }
+
+    pub fn negative_precision(&self) -> f64 {
+        ratio(self.true_negative, self.true_negative + self.false_negative)
     }
 
     pub fn recall(&self) -> f64 {
@@ -81,7 +98,11 @@ fn ranked(counts: HashMap<u32, usize>) -> Vec<(u32, usize)> {
     ranked
 }
 
-pub fn score(reader: &Reader<Vec<u8>>, probes: &[&Probe]) -> Result<HostingScore> {
+pub fn score(
+    reader: &Reader<Vec<u8>>,
+    probes: &[&Probe],
+    types: &HashMap<u32, Vec<String>>,
+) -> Result<HostingScore> {
     let mut score = HostingScore::default();
     let mut false_positive: HashMap<u32, usize> = HashMap::new();
     let mut false_negative: HashMap<u32, usize> = HashMap::new();
@@ -89,8 +110,12 @@ pub fn score(reader: &Reader<Vec<u8>>, probes: &[&Probe]) -> Result<HostingScore
         let Some(truth) = hosted(probe) else {
             continue;
         };
-        let flagged = lookup::hosting_provider(reader, probe.address)?;
         let asn = probe.asn.unwrap_or(0);
+        if truth && types.get(&asn).is_some_and(|t| operator_network(t)) {
+            score.operator_datacentres += 1;
+            continue;
+        }
+        let flagged = lookup::hosting_provider(reader, probe.address)?;
         match (truth, flagged) {
             (true, true) => score.true_positive += 1,
             (false, true) => {
@@ -154,21 +179,32 @@ mod tests {
             probe(3, "192.0.2.200", &["vps"]),
             probe(4, "192.0.2.201", &["cable"]),
             probe(5, "192.0.2.202", &["office"]),
+            probe(6, "192.0.2.203", &["datacentre"]),
+            probe(7, "192.0.2.204", &["datacentre"]),
         ];
+        let types = HashMap::from([
+            (64506, vec!["Cable/DSL/ISP".to_string()]),
+            (
+                64507,
+                vec!["Educational/Research".to_string(), "Content".to_string()],
+            ),
+        ]);
         let selected: Vec<&Probe> = probes.iter().collect();
-        let score = score(&reader, &selected).unwrap();
+        let score = score(&reader, &selected, &types).unwrap();
         assert_eq!(
             score,
             HostingScore {
                 true_positive: 1,
                 false_positive: 1,
-                false_negative: 1,
+                false_negative: 2,
                 true_negative: 1,
+                operator_datacentres: 1,
                 false_positive_ases: vec![(64502, 1)],
-                false_negative_ases: vec![(64503, 1)],
+                false_negative_ases: vec![(64503, 1), (64507, 1)],
             }
         );
         assert_eq!(score.precision(), 50.0);
-        assert_eq!(score.recall(), 50.0);
+        assert!((score.negative_precision() - 100.0 / 3.0).abs() < 1e-9);
+        assert!((score.recall() - 100.0 / 3.0).abs() < 1e-9);
     }
 }

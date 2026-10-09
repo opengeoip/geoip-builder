@@ -51,7 +51,14 @@ geoip-builder compare --kind country out/country.mmdb GeoLite2-Country.mmdb
 
 `evaluate` checks databases against the countries reported by RIPE Atlas probes, for IPv4 and IPv6, for all probes, anchors (datacentres) and home probes. It lists the most frequent errors and, for two databases, which one is right when they disagree. Probes known to report a wrong location and anycast addresses are left out, unless `--keep-suspicious` is set. `--only FR` limits it to one country, `--top` sets how many errors are listed.
 
-`evaluate` also accepts an Anonymous IP database. It then checks the hosting flag against the tags of the probes: `datacentre`, `vps`, `cloud` and similar tags for hosted probes, `home`, `fibre`, `cable`, `dsl` and similar tags for access probes. It prints the precision and recall of the flag and the ASes behind the errors.
+`evaluate` also accepts an Anonymous IP database. It then checks the hosting flag against the tags of the probes: `datacentre`, `vps`, `cloud` and similar tags for hosted probes, `home`, `fibre`, `cable`, `dsl` and similar tags for access probes. It prints, in both directions, how often the flag is right, how many hosted probes it finds, and the ASes behind the errors.
+
+```sh
+geoip-builder audit-sample --output out/hosting-audit.csv
+geoip-builder audit-score out/hosting-audit.csv
+```
+
+`audit-sample` draws IPv4 addresses at random among routed addresses, 100 flagged and 100 not flagged (`--per-side`, `--seed`), with their AS, PeeringDB types and APNIC users. Fill the `verdict` column with `hosting`, `not-hosting` or `unknown`, then `audit-score` estimates, with 95 % intervals, how often the flag is right in both directions and how much of the hosting address space it covers. See [Accuracy](evaluation.md) for how verdicts are given.
 
 `compare` measures how much two databases agree, weighted by IPv4 addresses and IPv6 /48s. It lists the largest disagreements and the ranges behind them. `--only FR` or `--only AS3215` limits it to one country or AS.
 

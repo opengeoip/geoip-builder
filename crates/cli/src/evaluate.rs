@@ -158,6 +158,7 @@ fn hosting_report(
     probes: &[Probe],
     database: &Database,
     names: &HashMap<u32, String>,
+    types: &HashMap<u32, Vec<String>>,
     top: usize,
 ) -> Result<Vec<Value>> {
     let mut results = Vec::new();
@@ -166,16 +167,21 @@ fn hosting_report(
             .iter()
             .filter(|p| p.address.is_ipv4() == ipv4)
             .collect();
-        let score = analysis::hosting::score(&database.reader, &selected)?;
+        let score = analysis::hosting::score(&database.reader, &selected, types)?;
         println!(
-            "{family} hosting, {}: precision {:.2} %   recall {:.2} %   (hosted probes flagged {}, missed {}; access probes flagged {}, not flagged {})",
+            "{family} hosting, {}: flagged and hosted {:.2} %   not flagged and access {:.2} %   recall {:.2} %",
             database.name,
             score.precision(),
-            score.recall(),
+            score.negative_precision(),
+            score.recall()
+        );
+        println!(
+            "  hosted probes flagged {}, missed {}; access probes flagged {}, not flagged {}; hosted probes in access or research networks, left out: {}",
             score.true_positive,
             score.false_negative,
             score.false_positive,
-            score.true_negative
+            score.true_negative,
+            score.operator_datacentres
         );
         for (label, ases) in [
             ("access probes flagged", &score.false_positive_ases),
@@ -198,7 +204,9 @@ fn hosting_report(
             "false_positive": score.false_positive,
             "false_negative": score.false_negative,
             "true_negative": score.true_negative,
+            "operator_datacentres": score.operator_datacentres,
             "precision": (score.precision() * 100.0).round() / 100.0,
+            "negative_precision": (score.negative_precision() * 100.0).round() / 100.0,
             "recall": (score.recall() * 100.0).round() / 100.0,
         }));
     }
@@ -258,8 +266,18 @@ pub fn run(options: &Options<'_>, paths: &[PathBuf]) -> Result<()> {
             .iter()
             .map(|(asn, n)| (*asn, n.name.clone()))
             .collect();
+        let types: HashMap<u32, Vec<String>> = peeringdb
+            .iter()
+            .map(|(asn, n)| (*asn, n.types().into_iter().map(str::to_string).collect()))
+            .collect();
         for database in &hosting {
-            hosting_results.extend(hosting_report(&probes, database, &names, options.top)?);
+            hosting_results.extend(hosting_report(
+                &probes,
+                database,
+                &names,
+                &types,
+                options.top,
+            )?);
         }
     }
     let networks: HashMap<u32, Network> = peeringdb

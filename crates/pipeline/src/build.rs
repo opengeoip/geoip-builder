@@ -147,13 +147,17 @@ pub fn listed_geofeeds(
     listed
 }
 
+pub fn apnic_users(data_dir: &Path) -> Result<HashMap<Asn, u64>> {
+    src_aspop::parse(open(data_dir, &sources::aspop())?)
+}
+
 pub fn hosting(
     data_dir: &Path,
     selected: &[merge::SelectedRoute],
     log: &mut Log<'_>,
 ) -> Result<HashSet<Asn>> {
     let networks = src_peeringdb::parse(open(data_dir, &sources::peeringdb())?)?;
-    let users = src_aspop::parse(open(data_dir, &sources::aspop())?)?;
+    let users = apnic_users(data_dir)?;
     log(format!(
         "hosting: {} PeeringDB networks, {} ASes with APNIC user estimates",
         networks.len(),

@@ -1,3 +1,4 @@
+pub mod audit;
 pub mod candidates;
 pub mod compare;
 pub mod coverage;
