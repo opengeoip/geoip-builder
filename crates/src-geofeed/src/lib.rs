@@ -75,6 +75,17 @@ fn iso_country(code: String) -> Option<String> {
     }
 }
 
+const MAX_TEXT: usize = 100;
+
+fn text(fields: &[Cow<'_, str>], index: usize) -> Option<String> {
+    field(fields, index).filter(|value| {
+        value.chars().count() <= MAX_TEXT
+            && !value
+                .chars()
+                .any(|c| c.is_control() || c == '<' || c == '>')
+    })
+}
+
 fn parse_line(line: &str) -> Option<Location> {
     let fields = split_fields(line);
     let network: IpNet = fields[0].trim().parse().ok()?;
@@ -91,7 +102,11 @@ fn parse_line(line: &str) -> Option<Location> {
     let region = field(&fields, 2).and_then(|region| {
         let region = region.to_ascii_uppercase();
         match (&country, region.split_once('-')) {
-            (Some(country), Some((prefix, code))) if prefix == country && !code.is_empty() => {
+            (Some(country), Some((prefix, code)))
+                if prefix == country
+                    && (1..=3).contains(&code.len())
+                    && code.bytes().all(|b| b.is_ascii_alphanumeric()) =>
+            {
                 Some(code.to_string())
             }
             _ => None,
@@ -101,8 +116,8 @@ fn parse_line(line: &str) -> Option<Location> {
         network: network.trunc(),
         country,
         region,
-        city: field(&fields, 3),
-        postal: field(&fields, 4),
+        city: text(&fields, 3),
+        postal: text(&fields, 4),
     })
 }
 
@@ -199,13 +214,14 @@ mod tests {
                      81.2.69.0/24,uk,UK-ENG,London,\n\
                      185.180.12.0/24,EU,,,\n\
                      193.19.180.0/24,XK,,Pristina,\n\
+                     192.0.2.128/25,FR,FR-<SCRIPT>,<script>alert(1)</script>,\u{7}75001\n\
                      not-a-prefix,FR,,,\n\
                      203.0.113.0/24,FRA,,,\n";
         let (locations, stats) = parse(input.as_bytes()).unwrap();
         assert_eq!(
             stats,
             ParseStats {
-                entries: 8,
+                entries: 9,
                 invalid: 2
             }
         );
@@ -224,6 +240,14 @@ mod tests {
         assert_eq!(locations[5].region, None);
         assert_eq!(locations[6].country, None);
         assert_eq!(locations[7].country.as_deref(), Some("XK"));
+        assert_eq!(locations[8].region, None);
+        assert_eq!(locations[8].city, None);
+        assert_eq!(locations[8].postal, None);
+        assert_eq!(text(&[Cow::Owned("x".repeat(101))], 0), None);
+        assert_eq!(
+            text(&[Cow::Borrowed("Zürich")], 0).as_deref(),
+            Some("Zürich")
+        );
     }
 
     #[test]
