@@ -67,6 +67,14 @@ fn field(fields: &[Cow<'_, str>], index: usize) -> Option<String> {
     (!value.is_empty()).then(|| value.to_string())
 }
 
+fn iso_country(code: String) -> Option<String> {
+    match code.as_str() {
+        "UK" => Some("GB".to_string()),
+        "XK" => Some(code),
+        _ => model::continent::continent(&code).map(|_| code),
+    }
+}
+
 fn parse_line(line: &str) -> Option<Location> {
     let fields = split_fields(line);
     let network: IpNet = fields[0].trim().parse().ok()?;
@@ -76,7 +84,7 @@ fn parse_line(line: &str) -> Option<Location> {
             if code.len() != 2 || !code.bytes().all(|b| b.is_ascii_alphabetic()) {
                 return None;
             }
-            Some(code)
+            iso_country(code)
         }
         None => None,
     };
@@ -188,13 +196,16 @@ mod tests {
                      192.0.2.0/24,,,,\n\
                      198.51.100.0/24,FR,BOGUS,,  # trailing comment\n\
                      52.144.102.218/32,\"US\",US-TX,\"Lampasas, TX\",\"76\"\"550\"\n\
+                     81.2.69.0/24,uk,UK-ENG,London,\n\
+                     185.180.12.0/24,EU,,,\n\
+                     193.19.180.0/24,XK,,Pristina,\n\
                      not-a-prefix,FR,,,\n\
                      203.0.113.0/24,FRA,,,\n";
         let (locations, stats) = parse(input.as_bytes()).unwrap();
         assert_eq!(
             stats,
             ParseStats {
-                entries: 5,
+                entries: 8,
                 invalid: 2
             }
         );
@@ -209,6 +220,10 @@ mod tests {
         assert_eq!(locations[4].city.as_deref(), Some("Lampasas, TX"));
         assert_eq!(locations[4].country.as_deref(), Some("US"));
         assert_eq!(locations[4].postal.as_deref(), Some("76\"550"));
+        assert_eq!(locations[5].country.as_deref(), Some("GB"));
+        assert_eq!(locations[5].region, None);
+        assert_eq!(locations[6].country, None);
+        assert_eq!(locations[7].country.as_deref(), Some("XK"));
     }
 
     #[test]
