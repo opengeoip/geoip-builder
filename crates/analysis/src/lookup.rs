@@ -15,6 +15,13 @@ pub fn asn(reader: &Reader<Vec<u8>>, address: IpAddr) -> Result<Option<u32>> {
         .decode_path::<u32>(&path!["autonomous_system_number"])?)
 }
 
+pub fn hosting_provider(reader: &Reader<Vec<u8>>, address: IpAddr) -> Result<bool> {
+    Ok(reader
+        .lookup(address)?
+        .decode_path::<bool>(&path!["is_hosting_provider"])?
+        .unwrap_or(false))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

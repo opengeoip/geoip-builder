@@ -1,3 +1,4 @@
+mod audit;
 mod candidates;
 mod compare;
 mod coverage;
@@ -158,6 +159,25 @@ enum Command {
         #[arg(required = true)]
         databases: Vec<PathBuf>,
     },
+    AuditSample {
+        #[arg(long, default_value = "data")]
+        data_dir: PathBuf,
+        #[arg(long, default_value = "out/asn.mmdb")]
+        asn: PathBuf,
+        #[arg(long, default_value = "out/anonymous-ip.mmdb")]
+        hosting: PathBuf,
+        #[arg(long, default_value_t = 100)]
+        per_side: usize,
+        #[arg(long, default_value_t = 1)]
+        seed: u64,
+        #[arg(long, default_value = "out/hosting-audit.csv")]
+        output: PathBuf,
+    },
+    AuditScore {
+        #[arg(long)]
+        json: Option<PathBuf>,
+        audit: PathBuf,
+    },
     Compare {
         #[arg(long, value_enum)]
         kind: compare::KindArg,
@@ -276,6 +296,22 @@ fn main() -> Result<()> {
             },
             &databases,
         ),
+        Command::AuditSample {
+            data_dir,
+            asn,
+            hosting,
+            per_side,
+            seed,
+            output,
+        } => audit::sample_run(&audit::SampleOptions {
+            data_dir: &data_dir,
+            asn: &asn,
+            hosting: &hosting,
+            per_side,
+            seed,
+            output: &output,
+        }),
+        Command::AuditScore { json, audit } => audit::score_run(&audit, json.as_deref()),
         Command::Compare {
             kind,
             top,

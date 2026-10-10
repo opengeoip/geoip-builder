@@ -645,10 +645,12 @@ dependencies = [
  "serde_json",
  "src-arin",
  "src-asnames",
+ "src-aspop",
  "src-atlas",
  "src-bgp",
  "src-delegated",
  "src-geofeed",
+ "src-peeringdb",
  "src-rpki",
  "src-rpsl",
 ]
@@ -879,6 +881,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "src-aspop"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "model",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "src-atlas"
 version = "0.4.2"
 dependencies = [
@@ -919,6 +931,16 @@ dependencies = [
  "model",
  "serde",
  "tempfile",
+]
+
+[[package]]
+name = "src-peeringdb"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "model",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

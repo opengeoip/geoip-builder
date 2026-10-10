@@ -167,6 +167,7 @@ mod tests {
                 is_anchor: false,
                 asn: None,
                 auto_located: false,
+                tags: Vec::new(),
             },
             Probe {
                 id: 2,
@@ -175,6 +176,7 @@ mod tests {
                 is_anchor: false,
                 asn: None,
                 auto_located: false,
+                tags: Vec::new(),
             },
         ];
         let observations = observe(&probes, &countries, &routes).unwrap();
