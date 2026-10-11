@@ -34,26 +34,36 @@ pub fn run(data_dir: &Path, sample: usize, interval: Duration, log: &mut Log<'_>
         if index > 0 {
             thread::sleep(interval);
         }
-        let check = Source::new(format!("{}.json", range.handle), src_arin::rdap_url(range));
-        if let Err(error) = fetcher.fetch(&check) {
-            failed += 1;
-            log(format!("arin check: {}: {error:#}", range.handle));
-            if fetch::is_rate_limited(&error) {
-                break;
+        let live = match lookup(&fetcher, range, interval) {
+            Ok(live) => live,
+            Err(error) => {
+                failed += 1;
+                log(format!("arin check: {}: {error:#}", range.handle));
+                if fetch::is_rate_limited(&error) {
+                    break;
+                }
+                continue;
             }
-            continue;
-        }
-        let live = src_arin::rdap_geofeed(BufReader::new(File::open(check.path(fetcher.dir()))?))?;
-        if live.as_deref() == range.geofeed() {
-            matching += 1;
-        } else {
-            differing += 1;
-            log(format!(
-                "arin check: {} lists {:?}, RDAP now says {:?}",
-                range.handle,
-                range.geofeed(),
-                live
-            ));
+        };
+        match live {
+            Some(live) if live.as_deref() == range.geofeed() => matching += 1,
+            Some(live) => {
+                differing += 1;
+                log(format!(
+                    "arin check: {} lists {:?}, RDAP now says {:?}",
+                    range.handle,
+                    range.geofeed(),
+                    live
+                ));
+            }
+            None => {
+                differing += 1;
+                log(format!(
+                    "arin check: {} lists {:?}, RDAP no longer has this network",
+                    range.handle,
+                    range.geofeed()
+                ));
+            }
         }
     }
     log(format!(
@@ -65,4 +75,34 @@ pub fn run(data_dir: &Path, sample: usize, interval: Duration, log: &mut Log<'_>
         differing,
         failed,
     })
+}
+
+const MAX_HOPS: usize = 8;
+
+fn lookup(
+    fetcher: &Fetcher,
+    range: &NetRange,
+    interval: Duration,
+) -> Result<Option<Option<String>>> {
+    let mut url = src_arin::rdap_url(range);
+    for hop in 0..MAX_HOPS {
+        if hop > 0 {
+            thread::sleep(interval);
+        }
+        let source = Source::new(format!("{}-{hop}.json", range.handle), url);
+        fetcher.fetch(&source)?;
+        let network =
+            src_arin::rdap_network(BufReader::new(File::open(source.path(fetcher.dir()))?))?;
+        if network.handle == range.handle {
+            return Ok(Some(network.geofeed));
+        }
+        if network.start < range.start || network.end > range.end {
+            return Ok(None);
+        }
+        match network.up {
+            Some(up) => url = up,
+            None => return Ok(None),
+        }
+    }
+    Ok(None)
 }

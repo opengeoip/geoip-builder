@@ -58,9 +58,16 @@ pub fn parse<R: Read>(reader: R) -> Result<(Vec<NetRange>, Vec<GeofeedRef>, Stat
 }
 
 #[derive(Deserialize)]
-struct RdapNetwork {
+struct RdapResponse {
+    handle: String,
+    #[serde(rename = "startAddress")]
+    start: IpAddr,
+    #[serde(rename = "endAddress")]
+    end: IpAddr,
     #[serde(default)]
     remarks: Vec<RdapRemark>,
+    #[serde(default)]
+    links: Vec<RdapLink>,
 }
 
 #[derive(Deserialize)]
@@ -69,19 +76,49 @@ struct RdapRemark {
     description: Vec<String>,
 }
 
-pub fn rdap_geofeed<R: Read>(reader: R) -> Result<Option<String>> {
-    let network: RdapNetwork = serde_json::from_reader(reader)?;
-    Ok(geofeed_in(
-        network
+#[derive(Deserialize)]
+struct RdapLink {
+    #[serde(default)]
+    rel: String,
+    href: String,
+}
+
+pub struct RdapNetwork {
+    pub handle: String,
+    pub start: IpAddr,
+    pub end: IpAddr,
+    pub geofeed: Option<String>,
+    pub up: Option<String>,
+}
+
+pub fn rdap_network<R: Read>(reader: R) -> Result<RdapNetwork> {
+    let response: RdapResponse = serde_json::from_reader(reader)?;
+    let geofeed = geofeed_in(
+        response
             .remarks
             .iter()
             .flat_map(|r| r.description.iter().map(String::as_str)),
     )
-    .map(str::to_string))
+    .map(str::to_string);
+    let up = response
+        .links
+        .into_iter()
+        .find(|link| link.rel == "up")
+        .map(|link| link.href);
+    Ok(RdapNetwork {
+        handle: response.handle,
+        start: response.start,
+        end: response.end,
+        geofeed,
+        up,
+    })
 }
 
 pub fn rdap_url(range: &NetRange) -> String {
-    format!("https://rdap.arin.net/registry/ip/{}", range.start)
+    match range_to_networks(range.start, range.end).and_then(|n| n.into_iter().next()) {
+        Some(network) => format!("https://rdap.arin.net/registry/ip/{network}"),
+        None => format!("https://rdap.arin.net/registry/ip/{}", range.start),
+    }
 }
 
 #[cfg(test)]
@@ -119,15 +156,34 @@ mod tests {
     }
 
     #[test]
-    fn reads_rdap_remarks() {
-        let input = r#"{"handle":"NET-1","remarks":[{"title":"Registration Comments","description":["Geofeed https://gpcom.example/geofeed.csv"]}]}"#;
+    fn reads_rdap_networks() {
+        let input = r#"{"handle":"NET-1","startAddress":"192.0.2.0","endAddress":"192.0.2.255","remarks":[{"title":"Registration Comments","description":["Geofeed https://gpcom.example/geofeed.csv"]}],"links":[{"rel":"self","href":"https://rdap.example/ip/192.0.2.0"},{"rel":"up","href":"https://rdap.example/ip/192.0.0.0/22"}]}"#;
+        let network = rdap_network(input.as_bytes()).unwrap();
+        assert_eq!(network.handle, "NET-1");
         assert_eq!(
-            rdap_geofeed(input.as_bytes()).unwrap().as_deref(),
+            network.geofeed.as_deref(),
             Some("https://gpcom.example/geofeed.csv")
         );
         assert_eq!(
-            rdap_geofeed(r#"{"handle":"NET-2"}"#.as_bytes()).unwrap(),
-            None
+            network.up.as_deref(),
+            Some("https://rdap.example/ip/192.0.0.0/22")
+        );
+        let bare = r#"{"handle":"NET-2","startAddress":"192.0.2.0","endAddress":"192.0.2.255"}"#;
+        let network = rdap_network(bare.as_bytes()).unwrap();
+        assert_eq!((network.geofeed, network.up), (None, None));
+    }
+
+    #[test]
+    fn queries_the_first_block_of_the_range() {
+        let range = NetRange {
+            handle: "NET-198-145-66-0-1".to_string(),
+            start: "198.145.66.0".parse().unwrap(),
+            end: "198.145.103.255".parse().unwrap(),
+            remarks: Vec::new(),
+        };
+        assert_eq!(
+            rdap_url(&range),
+            "https://rdap.arin.net/registry/ip/198.145.66.0/23"
         );
     }
 }
