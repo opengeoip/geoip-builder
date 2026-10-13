@@ -8,10 +8,10 @@
     "docker:pinDigests"
   ],
   "timezone": "Europe/Paris",
-  "schedule": ["before 6am on monday"],
+  "schedule": ["on monday"],
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 6am on monday"]
+    "schedule": ["on monday"]
   },
   "packageRules": [
     {
