@@ -76,10 +76,11 @@ pub fn anycast(version: u8) -> Source {
 }
 
 pub fn peeringdb() -> Source {
-    Source::new(
-        "peeringdb-net.json",
-        "https://www.peeringdb.com/api/net?fields=asn,name,website,info_type",
-    )
+    Source::new("peeringdb-net.json", src_peeringdb::URL)
+}
+
+pub fn aspop() -> Source {
+    Source::new("apnic-aspop.json", src_aspop::URL)
 }
 
 pub fn vrps(url: &str) -> Source {
@@ -140,6 +141,7 @@ pub fn all(collectors: &[String], vrps_url: &str) -> Vec<Source> {
     sources.push(arin_geofeed_inetnums());
     sources.push(atlas());
     sources.push(peeringdb());
+    sources.push(aspop());
     sources.push(anycast(4));
     sources.push(anycast(6));
     sources.push(violating_probes_index());

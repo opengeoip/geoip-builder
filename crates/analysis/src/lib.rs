@@ -1,7 +1,9 @@
+pub mod audit;
 pub mod candidates;
 pub mod compare;
 pub mod coverage;
 pub mod evaluate;
+pub mod hosting;
 pub mod lookup;
 
 #[cfg(test)]

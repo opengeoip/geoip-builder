@@ -154,6 +154,74 @@ fn report(
     println!();
 }
 
+fn hosting_report(
+    probes: &[Probe],
+    database: &Database,
+    names: &HashMap<u32, String>,
+    types: &HashMap<u32, Vec<String>>,
+    top: usize,
+) -> Result<Vec<Value>> {
+    let mut results = Vec::new();
+    for (family, ipv4) in [("IPv4", true), ("IPv6", false)] {
+        let selected: Vec<&Probe> = probes
+            .iter()
+            .filter(|p| p.address.is_ipv4() == ipv4)
+            .collect();
+        let score = analysis::hosting::score(&database.reader, &selected, types)?;
+        println!(
+            "{family} hosting, {}: flagged and hosted {:.2} %   not flagged and access {:.2} %   recall {:.2} %",
+            database.name,
+            score.precision(),
+            score.negative_precision(),
+            score.recall()
+        );
+        println!(
+            "  hosted probes flagged {}, missed {}; access probes flagged {}, not flagged {}; hosted probes in access or research networks, left out: {}",
+            score.true_positive,
+            score.false_negative,
+            score.false_positive,
+            score.true_negative,
+            score.operator_datacentres
+        );
+        for (label, ases) in [
+            ("access probes flagged", &score.false_positive_ases),
+            ("hosted probes missed", &score.false_negative_ases),
+        ] {
+            if top > 0 && !ases.is_empty() {
+                println!("  {label}:");
+            }
+            for (asn, count) in ases.iter().take(top) {
+                println!(
+                    "    AS{asn:<10} {count:>4}  {}",
+                    names.get(asn).map(String::as_str).unwrap_or("-")
+                );
+            }
+        }
+        results.push(json!({
+            "family": family,
+            "name": database.name,
+            "true_positive": score.true_positive,
+            "false_positive": score.false_positive,
+            "false_negative": score.false_negative,
+            "true_negative": score.true_negative,
+            "operator_datacentres": score.operator_datacentres,
+            "precision": (score.precision() * 100.0).round() / 100.0,
+            "negative_precision": (score.negative_precision() * 100.0).round() / 100.0,
+            "recall": (score.recall() * 100.0).round() / 100.0,
+        }));
+    }
+    println!();
+    Ok(results)
+}
+
+fn is_hosting(database: &Database) -> bool {
+    database
+        .reader
+        .metadata()
+        .database_type
+        .ends_with("Anonymous-IP")
+}
+
 fn open(path: &Path) -> Result<Database> {
     Ok(Database {
         name: path
@@ -166,7 +234,12 @@ fn open(path: &Path) -> Result<Database> {
 
 pub fn run(options: &Options<'_>, paths: &[PathBuf]) -> Result<()> {
     let probes = src_atlas::parse(BufReader::new(File::open(options.truth)?))?;
-    let databases: Vec<Database> = paths.iter().map(|path| open(path)).collect::<Result<_>>()?;
+    let (hosting, databases): (Vec<Database>, Vec<Database>) = paths
+        .iter()
+        .map(|path| open(path))
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .partition(is_hosting);
     let probes: Vec<Probe> = probes
         .into_iter()
         .filter(|p| options.only.is_none_or(|c| p.country == c))
@@ -186,12 +259,33 @@ pub fn run(options: &Options<'_>, paths: &[PathBuf]) -> Result<()> {
         println!();
         kept
     };
-    let networks: HashMap<u32, Network> = pipeline::candidates::networks(options.data_dir)?
+    let peeringdb = pipeline::candidates::networks(options.data_dir)?;
+    let mut hosting_results = Vec::new();
+    if !hosting.is_empty() {
+        let names: HashMap<u32, String> = peeringdb
+            .iter()
+            .map(|(asn, n)| (*asn, n.name.clone()))
+            .collect();
+        let types: HashMap<u32, Vec<String>> = peeringdb
+            .iter()
+            .map(|(asn, n)| (*asn, n.types().into_iter().map(str::to_string).collect()))
+            .collect();
+        for database in &hosting {
+            hosting_results.extend(hosting_report(
+                &probes,
+                database,
+                &names,
+                &types,
+                options.top,
+            )?);
+        }
+    }
+    let networks: HashMap<u32, Network> = peeringdb
         .into_iter()
         .map(|(asn, n)| (asn, Network::from_peeringdb(n.info_type.as_deref())))
         .collect();
     let mut results = Vec::new();
-    for group in groups() {
+    for group in groups().into_iter().filter(|_| !databases.is_empty()) {
         let selected = group.select(&probes);
         let answers: Vec<Vec<Option<String>>> = databases
             .iter()
@@ -207,7 +301,10 @@ pub fn run(options: &Options<'_>, paths: &[PathBuf]) -> Result<()> {
         };
         results.push(scores(family, None, name, &selected, &answers, &databases));
     }
-    for (family, ipv4) in [("IPv4", true), ("IPv6", false)] {
+    for (family, ipv4) in [("IPv4", true), ("IPv6", false)]
+        .into_iter()
+        .filter(|_| !databases.is_empty())
+    {
         let selected: Vec<&Probe> = probes
             .iter()
             .filter(|p| p.address.is_ipv4() == ipv4)
@@ -228,7 +325,7 @@ pub fn run(options: &Options<'_>, paths: &[PathBuf]) -> Result<()> {
     if let Some(path) = options.json {
         serde_json::to_writer_pretty(
             BufWriter::new(File::create(path)?),
-            &json!({ "results": results }),
+            &json!({ "results": results, "hosting": hosting_results }),
         )?;
     }
     Ok(())

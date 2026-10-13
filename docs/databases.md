@@ -41,6 +41,19 @@ Only registries anchor a geofeed on a prefix: `build` ignores a `manual` row wit
 
 For each prefix in the BGP tables, the origin AS seen by the most peers is kept, unless RPKI says another AS should originate it. If an RPKI record covers the prefix, only a valid origin is kept; with no RPKI record, the most seen origin is kept, unless `--rpki-valid-only` is set. A dropped prefix falls back to the closest valid covering one, so a hijacked more specific resolves to its legitimate owner. Each record says whether its route is RPKI `valid` or `not-found`.
 
+## Hosting providers
+
+`anonymous-ip.mmdb` follows the GeoIP2 Anonymous IP schema and flags the prefixes originated by hosting providers with `is_hosting_provider` and `is_anonymous`. As in MaxMind's database, other addresses are not in the file. The other flags of the schema, such as VPNs or Tor exit nodes, are never set.
+
+Each AS is classified from two public sources, with no list of networks kept by hand:
+
+- **PeeringDB network type.** Operators declare one or more types for their network. An AS declared as `Cable/DSL/ISP` is never a hosting provider. An AS declared as `Content` is one.
+- **APNIC users per AS.** APNIC Labs estimates how many users sit behind each AS from ad-based measurements. An AS declared as `NSP`, `Network Services` or `Enterprise` is a hosting provider when it has fewer than 0.05 estimated users per announced IPv4 address. A transit or enterprise network with few users mostly hosts servers.
+
+An AS with no type in PeeringDB is never flagged. Each prefix of the ASN database takes the class of its origin AS, and a more specific prefix announced by another AS is not flagged.
+
+Hosting providers also carry users: VPN services and privacy relays egress from their networks. APNIC counts these users, so a population threshold alone would miss the largest providers, which is why a `Content` declaration is enough.
+
 ## Reserved ranges
 
 Private, loopback, documentation, multicast and other special-purpose ranges from the IANA registries never get data, whatever the registries or BGP say. A 6to4 address (`2002::/16`) resolves to the IPv4 address it embeds.

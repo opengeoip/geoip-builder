@@ -12,10 +12,11 @@ Everything is downloaded in bulk by `fetch`. Nothing is queried per address.
 | BGP | [RIPE RIS](https://ris.ripe.net/) routing table dumps | origin AS of every prefix |
 | RPKI | [rpki-client](https://console.rpki-client.org/) export | route origin validation |
 | AS names | [RIPE NCC list](https://ftp.ripe.net/ripe/asnames/asn.txt) | organization of each AS |
-| Ground truth | [RIPE Atlas](https://atlas.ripe.net/) probe archive | `evaluate` |
+| Network types | [PeeringDB](https://www.peeringdb.com/) | hosting providers, `evaluate`, `candidates` |
+| Users per AS | [APNIC Labs](https://stats.labs.apnic.net/aspop) | hosting providers |
+| Ground truth | [RIPE Atlas](https://atlas.ripe.net/) probe archive and its tags | `evaluate` |
 | Probes to ignore | [violating_ripe_probes](https://github.com/kizhikevich/violating_ripe_probes) | `evaluate` |
 | Anycast prefixes | [LACeS census](https://github.com/ut-dacs/anycast-census) | `evaluate` |
-| Network websites | [PeeringDB](https://www.peeringdb.com/) | `candidates` |
 
 ## ARIN
 

@@ -11,6 +11,7 @@ use fetch::Fetcher;
 use maxminddb::Reader;
 use serde::Deserialize;
 use src_geofeed::list;
+use src_peeringdb::Network;
 
 use crate::fetch::geofeed_fetcher;
 use crate::{sources, truth};
@@ -23,21 +24,6 @@ pub struct Options<'a> {
     pub coverage: &'a Path,
     pub geofeeds: &'a Path,
     pub probe: usize,
-}
-
-#[derive(Deserialize)]
-struct PeeringDb {
-    data: Vec<Network>,
-}
-
-#[derive(Clone, Deserialize)]
-pub struct Network {
-    pub asn: u32,
-    pub name: String,
-    #[serde(default)]
-    pub website: Option<String>,
-    #[serde(default)]
-    pub info_type: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -65,13 +51,7 @@ pub struct Report {
 
 pub fn networks(data_dir: &Path) -> Result<HashMap<u32, Network>> {
     match File::open(sources::peeringdb().path(data_dir)) {
-        Ok(file) => Ok(
-            serde_json::from_reader::<_, PeeringDb>(BufReader::new(file))?
-                .data
-                .into_iter()
-                .map(|n| (n.asn, n))
-                .collect(),
-        ),
+        Ok(file) => src_peeringdb::parse(BufReader::new(file)),
         Err(_) => Ok(HashMap::new()),
     }
 }

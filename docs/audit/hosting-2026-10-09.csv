@@ -1,0 +1,201 @@
+address,flagged,network,asn,organization,peeringdb_types,apnic_users,flagged_addresses,unflagged_addresses,verdict,evidence
+122.160.110.38,false,122.160.104.0/21,24560,"Bharti Airtel Ltd., Telemedia Services",,54290653,513495040,2622369792,not-hosting,rDNS abts-north-static-038.110.160.122.airtelbroadband.in
+169.138.186.192,true,169.138.0.0/16,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+217.222.217.10,false,217.222.0.0/15,3269,ASN-IBSNAZ Telecom Italia S.p.A.,,7169298,513495040,2622369792,not-hosting,rDNS host-217-222-217-10.business.telecomitalia.it
+96.89.136.201,false,96.64.0.0/11,7922,"Comcast Cable Communications, LLC",Cable/DSL/ISP,41962129,513495040,2622369792,not-hosting,rDNS 96-89-136-201-static.hfc.comcastbusiness.net
+96.85.3.3,false,96.64.0.0/11,7922,"Comcast Cable Communications, LLC",Cable/DSL/ISP,41962129,513495040,2622369792,not-hosting,
+174.19.244.126,false,174.19.0.0/16,19901,Brightspeed,Cable/DSL/ISP + Enterprise,1532764,513495040,2622369792,not-hosting,rDNS 174-19-244-126.rcmt.centurylink.net
+197.234.134.44,false,197.234.128.0/18,37315,Cipherwave,NSP,74918,513495040,2622369792,unknown,"rDNS 197-234-134-44.mid.cipherwave.net; assigned to an application service provider inside a business ISP, use unclear"
+113.96.80.198,false,113.96.64.0/19,4134,"No.31,Jin-rong Street",NSP,209481481,513495040,2622369792,not-hosting,
+65.14.107.162,false,65.14.0.0/17,6389,"AT&T Enterprises, LLC",,975065,513495040,2622369792,not-hosting,
+180.110.77.48,false,180.110.64.0/20,4134,"No.31,Jin-rong Street",NSP,209481481,513495040,2622369792,not-hosting,
+88.113.120.47,false,88.112.0.0/14,719,ELISA-AS Elisa Oyj,NSP,1496700,513495040,2622369792,not-hosting,rDNS 88-113-120-47.elisa-laajakaista.fi
+132.27.1.219,false,132.26.0.0/15,56,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+98.138.49.40,false,98.138.0.0/16,36646,Yahoo Holdings Inc.,,,513495040,2622369792,hosting,rDNS unknown.yahoo.com
+114.203.120.214,false,114.203.0.0/16,9318,SK Broadband Co Ltd,Cable/DSL/ISP,865201,513495040,2622369792,not-hosting,
+94.183.142.245,false,94.183.128.0/20,31549,RASANA Aria Shatel PJSC,,714972,513495040,2622369792,not-hosting,rDNS 94-183-142-245.shatel.ir
+38.170.153.108,false,38.170.128.0/19,37577,Orange Burkina Faso,Cable/DSL/ISP,2076659,513495040,2622369792,not-hosting,
+142.25.248.155,false,142.25.224.0/19,3633,Province of British Columbia,Government,791,513495040,2622369792,not-hosting,
+184.176.181.36,false,184.176.128.0/17,22773,Cox Communications Inc.,Cable/DSL/ISP,7641879,513495040,2622369792,not-hosting,
+151.202.90.251,false,151.202.0.0/17,701,Verizon Business,NSP,10600696,513495040,2622369792,not-hosting,rDNS pool-151-202-90-251.nycmny.fios.verizon.net
+199.182.142.250,false,199.182.136.0/21,13807,Great Plains Communications LLC,Cable/DSL/ISP,82157,513495040,2622369792,not-hosting,rDNS gpc-199-182-142-250-ne.gpcom.net
+16.136.149.137,true,16.136.0.0/15,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+20.214.39.134,true,20.192.0.0/10,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+107.141.167.149,false,107.128.0.0/12,7018,"AT&T Enterprises, LLC",NSP,28713232,513495040,2622369792,not-hosting,rDNS 107-141-167-149.lightspeed.bcvloh.sbcglobal.net
+29.249.245.221,false,29.0.0.0/8,749,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+65.85.54.155,false,65.85.32.0/19,11427,Charter Communications Inc,Cable/DSL/ISP,3996487,513495040,2622369792,not-hosting,rDNS 65-85-54-155.client.dsl.net
+12.32.15.50,false,12.32.0.0/18,7018,"AT&T Enterprises, LLC",NSP,28713232,513495040,2622369792,not-hosting,
+111.231.161.137,true,111.230.0.0/15,45090,Shenzhen Tencent Computer Systems Company Limited,Content,708871,513495040,2622369792,hosting,
+159.244.226.118,true,159.244.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+11.89.88.71,false,11.64.0.0/11,749,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+223.119.236.223,false,223.119.224.0/20,58453,China Mobile International Limited,NSP,205180,513495040,2622369792,unknown,"international carrier block, use unclear"
+130.92.182.116,false,130.92.0.0/16,559,Switch SWITCH,Educational/Research,13558,513495040,2622369792,not-hosting,
+126.204.190.197,false,126.204.0.0/14,17676,SoftBank Corp.,NSP,20254144,513495040,2622369792,not-hosting,rDNS om126204190197.3.openmobile.ne.jp
+87.20.222.176,false,87.0.0.0/11,3269,ASN-IBSNAZ Telecom Italia S.p.A.,,7169298,513495040,2622369792,not-hosting,rDNS host-87-20-222-176.retail.telecomitalia.it
+95.77.173.167,false,95.76.0.0/15,12302,Vodafone_Ro Vodafone Romania S.A.,Cable/DSL/ISP,1446280,513495040,2622369792,not-hosting,
+58.125.115.84,false,58.125.112.0/20,9318,SK Broadband Co Ltd,Cable/DSL/ISP,865201,513495040,2622369792,not-hosting,
+114.187.221.76,false,114.160.0.0/11,4713,"NTT DOCOMO BUSINESS,Inc.",NSP,12622651,513495040,2622369792,not-hosting,rDNS i114-187-221-76.s99.a049.ap.plala.or.jp
+117.191.147.28,false,117.188.0.0/14,9808,"China Mobile Communications Group Co., Ltd.",NSP,131008857,513495040,2622369792,not-hosting,
+170.110.31.181,false,170.110.0.0/17,33343,"U.S. Department of Commerce, HQ and ITA",,,513495040,2622369792,not-hosting,
+185.57.83.110,false,185.57.80.0/22,31313,STS Serviciul de Telecomunicatii Speciale,Government + Network Services,7082,513495040,2622369792,not-hosting,
+148.65.216.242,true,148.65.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+194.154.197.113,false,194.154.192.0/21,6661,EPT-LU POST Luxembourg,Cable/DSL/ISP,313144,513495040,2622369792,not-hosting,
+158.57.54.230,false,158.57.0.0/16,1932,"Consolidated Edison Co. of New York, Inc.",,,513495040,2622369792,not-hosting,
+54.113.101.192,true,54.112.0.0/15,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+145.1.55.189,false,145.1.0.0/17,1103,SURFNET-NL SURF B.V.,Educational/Research,48046,513495040,2622369792,not-hosting,
+196.21.19.193,false,196.21.0.0/19,2018,Tertiary Education and Research Network of South Africa,Educational/Research,165823,513495040,2622369792,not-hosting,
+189.157.219.119,false,189.157.0.0/16,8151,UNINET,Network Services,30632895,513495040,2622369792,not-hosting,rDNS dsl-119-219-157-189-dynamic.prod-infinitum.com.mx
+72.211.55.196,false,72.211.0.0/16,22773,Cox Communications Inc.,Cable/DSL/ISP,7641879,513495040,2622369792,not-hosting,rDNS wsip-72-211-55-196.sd.sd.cox.net
+37.45.242.174,false,37.45.0.0/16,6697,BELPAK-AS Republican Unitary Telecommunication Enterprise Beltelecom,NSP,3576380,513495040,2622369792,not-hosting,rDNS mm-174-242-45-37.mgts.dynamic.pppoe.byfly.by
+201.210.72.29,false,201.210.0.0/17,8048,"CANTV Servicios, Venezuela",Cable/DSL/ISP,384616,513495040,2622369792,not-hosting,rDNS 201-210-72-29-mil-06-p69.cantv.net
+206.16.195.154,false,206.16.195.0/24,7018,"AT&T Enterprises, LLC",NSP,28713232,513495040,2622369792,unknown,"former CERFnet block, use unclear"
+68.79.202.254,false,68.79.128.0/17,7018,"AT&T Enterprises, LLC",NSP,28713232,513495040,2622369792,not-hosting,
+31.160.63.15,false,31.160.0.0/15,1136,KPN KPN B.V.,NSP,5039680,513495040,2622369792,not-hosting,rDNS 31-160-63-15.biz.kpn.net
+73.17.241.194,false,73.0.0.0/8,7922,"Comcast Cable Communications, LLC",Cable/DSL/ISP,41962129,513495040,2622369792,not-hosting,rDNS c-73-17-241-194.hsd1.ct.comcast.net
+211.223.51.19,false,211.223.0.0/17,4766,Korea Telecom,Cable/DSL/ISP,23690509,513495040,2622369792,not-hosting,
+86.99.136.146,false,86.96.0.0/14,5384,EMIRATES-INTERNET EMIRATES TELECOMMUNICATIONS GROUP COMPANY (ETISALAT GROUP) PJSC,,7148753,513495040,2622369792,not-hosting,rDNS bba-86-99-136-146.alshamil.net.ae
+22.4.97.101,false,22.0.0.0/8,749,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+132.104.248.186,false,132.96.0.0/11,306,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+36.82.19.76,false,36.80.0.0/13,7713,PT Telekomunikasi Indonesia,NSP,20180116,513495040,2622369792,not-hosting,
+215.93.176.68,false,215.80.0.0/12,749,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+197.124.159.197,false,197.124.0.0/14,36992,ETISALAT MISR,NSP,4566713,513495040,2622369792,not-hosting,rDNS host-197.124.159.197.etisalat.com.eg
+114.17.19.200,false,114.16.0.0/14,2516,KDDI CORPORATION,NSP,22118162,513495040,2622369792,not-hosting,
+17.69.15.96,true,17.64.0.0/13,714,Apple Inc.,Content,14766,513495040,2622369792,unknown,Apple network mixes services and corporate offices
+171.222.178.209,false,171.222.0.0/15,4134,"No.31,Jin-rong Street",NSP,209481481,513495040,2622369792,not-hosting,
+115.163.214.135,false,115.162.0.0/15,2527,Sony Network Communications Inc.,NSP,4336966,513495040,2622369792,not-hosting,rDNS pa3d687.kngwnt01.ap.so-net.ne.jp
+161.196.86.97,false,161.196.0.0/16,8048,"CANTV Servicios, Venezuela",Cable/DSL/ISP,384616,513495040,2622369792,not-hosting,
+63.235.41.145,false,63.235.32.0/20,209,"CenturyLink Communications, LLC",NSP,3339174,513495040,2622369792,not-hosting,rDNS dcp-brdr-03.inet.qwest.net
+8.80.113.76,true,8.80.0.0/12,3356,"Level 3 Parent, LLC",NSP,561566,513495040,2622369792,unknown,"Lumen customer space, use unclear"
+5.84.116.238,false,5.84.0.0/14,24608,WINDTRE-AS WIND TRE S.P.A.,NSP,393020,513495040,2622369792,not-hosting,
+123.3.164.134,false,123.2.0.0/15,198678,deloscloud Delos Cloud GmbH,,,513495040,2622369792,hosting,
+29.101.254.142,false,29.0.0.0/8,749,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+37.170.3.65,false,37.168.0.0/13,51207,FREEM Free Mobile SAS,,2702318,513495040,2622369792,not-hosting,rDNS 37-170-3-65.coucou-networks.fr
+186.86.53.44,false,186.86.48.0/21,10620,Telmex Colombia S.A.,,6074515,513495040,2622369792,not-hosting,rDNS dynamic-ip-186865344.cable.net.co
+218.48.96.234,false,218.48.96.0/20,9318,SK Broadband Co Ltd,Cable/DSL/ISP,865201,513495040,2622369792,not-hosting,
+153.250.135.35,false,153.248.0.0/14,4713,"NTT DOCOMO BUSINESS,Inc.",NSP,12622651,513495040,2622369792,not-hosting,
+122.111.146.105,false,122.104.0.0/13,4804,Microplex PTY LTD,Cable/DSL/ISP,3634093,513495040,2622369792,not-hosting,
+101.253.45.77,false,101.252.0.0/15,7497,Computer Network Information Center of Chinese Academy of Sciences (CNIC-CAS),,100446,513495040,2622369792,not-hosting,
+137.9.213.143,false,137.9.0.0/16,56,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+194.62.181.106,false,194.62.180.0/22,29997,"Vitalwerks Internet Solutions, LLC",,,513495040,2622369792,hosting,
+182.196.137.34,true,182.192.0.0/13,6619,SamsungSDS Inc.,NSP,9665,513495040,2622369792,unknown,"IT services group network, corporate or cloud unclear"
+27.77.71.220,false,27.72.0.0/13,7552,Viettel Group,Cable/DSL/ISP,21547569,513495040,2622369792,not-hosting,
+143.56.190.188,false,143.56.0.0/16,668,United States Department of Defense (DoD),Educational/Research,,513495040,2622369792,not-hosting,
+51.54.45.52,false,51.54.0.0/15,8070,Microsoft Corporation,,903,513495040,2622369792,unknown,"Microsoft network outside its cloud AS, use unclear"
+92.31.104.7,false,92.16.0.0/12,13285,OPALTELECOM-AS TalkTalk Communications Limited,Cable/DSL/ISP,3942619,513495040,2622369792,not-hosting,rDNS host-92-31-104-7.as13285.net
+200.99.229.195,false,200.99.229.0/24,10429,TELEFONICA BRASIL S.A,,155680,513495040,2622369792,not-hosting,
+152.155.120.92,true,152.155.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+211.255.168.168,false,211.255.160.0/19,10036,DLIVE,Cable/DSL/ISP,514851,513495040,2622369792,not-hosting,
+171.42.197.237,false,171.42.0.0/16,4134,"No.31,Jin-rong Street",NSP,209481481,513495040,2622369792,not-hosting,
+30.168.49.65,false,30.0.0.0/8,749,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+41.22.123.50,false,41.22.0.0/16,29975,Vodacom,,3703357,513495040,2622369792,not-hosting,rDNS vc-gp-n-41-22-123-50.umts.vodacom.co.za
+166.210.9.101,false,166.210.0.0/17,26611,COMUNICACION CELULAR S.A. COMCEL S.A.,,4431534,513495040,2622369792,not-hosting,
+177.178.86.124,false,177.178.0.0/15,396982,Google LLC,,245779,513495040,2622369792,hosting,rDNS 177-178-86-124.user.vtal.net.br
+85.78.72.228,false,85.76.0.0/14,719,ELISA-AS Elisa Oyj,NSP,1496700,513495040,2622369792,not-hosting,
+23.242.82.254,false,23.240.0.0/14,20001,Charter Communications Inc,Cable/DSL/ISP,4445095,513495040,2622369792,not-hosting,rDNS syn-023-242-082-254.res.spectrum.com
+214.89.81.167,false,214.88.0.0/14,721,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+130.43.198.24,false,130.43.192.0/18,21334,ASN-ONE-HU 2Connect Telecommunications Infrastructure & Network Services Ltd.,,1446991,513495040,2622369792,not-hosting,rDNS apn-130-43-198-24.vodafone.hu
+23.45.27.32,false,23.45.24.0/21,16625,"Akamai Technologies, Inc.",,,513495040,2622369792,hosting,rDNS a23-45-27-32.deploy.static.akamaitechnologies.com
+193.80.140.167,false,193.80.136.0/21,51066,AUSTROCONTROL-AS Austro Control Oesterreichische Gesellschaft fuer Zivilluftfahrt mit beschraenkter Haftung,,,513495040,2622369792,not-hosting,
+190.140.110.85,false,190.140.0.0/17,18809,Cable Onda,Cable/DSL/ISP,1047952,513495040,2622369792,not-hosting,rDNS cm-190-140-110-85.cpe-statics.cableonda.net
+1.9.35.172,false,1.9.0.0/16,4788,TM TECHNOLOGY SERVICES SDN. BHD.,Cable/DSL/ISP,8684807,513495040,2622369792,not-hosting,
+69.180.155.114,false,69.180.0.0/15,7922,"Comcast Cable Communications, LLC",Cable/DSL/ISP,41962129,513495040,2622369792,not-hosting,rDNS c-69-180-155-114.hsd1.mn.comcast.net
+166.86.193.206,false,166.86.192.0/23,213740,OSL1 Rackspace Germany GmbH,,,513495040,2622369792,hosting,
+128.73.221.76,false,128.72.0.0/15,8402,"CORBINA-AS PJSC ""Vimpelcom""",Cable/DSL/ISP,566379,513495040,2622369792,not-hosting,rDNS 128-73-221-76.broadband.corbina.ru
+147.95.11.4,false,147.95.0.0/16,8762,TEI-OF-CRETE-AS Hellenic Mediterranean University,,,513495040,2622369792,not-hosting,
+104.234.209.59,true,104.234.209.0/24,63473,"HostHatch, LLC",Content + NSP,16755,513495040,2622369792,hosting,
+99.219.17.23,false,99.218.0.0/15,812,Rogers Communications Canada Inc.,Cable/DSL/ISP,4499112,513495040,2622369792,not-hosting,rDNS mta0015a43f95ca-cm0015a43f95c9.mta.net.cable.rogers.com
+221.240.217.57,false,221.240.0.0/12,17506,ARTERIA Networks Corporation,NSP,1241920,513495040,2622369792,not-hosting,rDNS 221x240x217x57.ap221.ftth.ucom.ne.jp
+140.230.184.2,false,140.230.0.0/16,8111,Dalhousie University,,1220,513495040,2622369792,not-hosting,
+6.204.17.7,false,6.192.0.0/11,749,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+191.84.155.37,false,191.84.0.0/15,22927,Telefonica de Argentina,Enterprise,4677712,513495040,2622369792,not-hosting,
+205.101.26.93,false,205.101.0.0/19,721,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+84.239.154.253,true,84.239.128.0/17,29422,NBLNETWORKS-AS Telia Cygate Oy,NSP,432,513495040,2622369792,unknown,rDNS hel2-84-239-154-253.ext.nebulacloud.fi; provider sells both cloud and business access
+35.3.102.25,false,35.0.0.0/14,36375,University of Michigan,,7267,513495040,2622369792,not-hosting,
+140.11.235.202,false,140.8.0.0/14,749,United States Department of Defense (DoD),,,513495040,2622369792,not-hosting,
+43.96.67.98,true,43.96.64.0/21,45102,"Alibaba (US) Technology Co., Ltd.",Content,162296,513495040,2622369792,hosting,
+23.41.98.15,true,23.41.96.0/20,20940,AKAMAI-ASN1 Akamai International B.V.,Content,417,513495040,2622369792,hosting,rDNS a23-41-98-15.deploy.static.akamaitechnologies.com
+118.195.181.191,true,118.195.128.0/17,45090,Shenzhen Tencent Computer Systems Company Limited,Content,708871,513495040,2622369792,hosting,
+57.159.7.14,true,57.152.0.0/13,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+56.44.74.154,true,56.44.0.0/14,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+65.172.58.219,true,65.172.56.0/21,174,"Cogent Communications, LLC",NSP,529488,513495040,2622369792,unknown,"Cogent customer space, use unclear"
+15.177.187.137,true,15.177.128.0/17,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+8.73.70.165,true,8.72.0.0/13,3356,"Level 3 Parent, LLC",NSP,561566,513495040,2622369792,unknown,same
+208.170.154.83,true,208.170.0.0/15,3561,"CenturyLink Communications, LLC",NSP,765,513495040,2622369792,hosting,
+69.86.29.160,true,69.86.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+151.134.101.138,true,151.134.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+66.85.100.110,true,66.85.96.0/19,14265,TPx Communications,NSP,13122,513495040,2622369792,not-hosting,rDNS 66-85-100-110.static-ip.telepacific.net
+17.39.91.131,true,17.0.0.0/10,714,Apple Inc.,Content,14766,513495040,2622369792,unknown,same
+149.188.95.165,true,149.188.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+15.191.206.63,true,15.190.0.0/15,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+104.43.97.73,true,104.40.0.0/13,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+17.52.210.195,true,17.0.0.0/10,714,Apple Inc.,Content,14766,513495040,2622369792,unknown,same
+165.243.99.52,true,165.243.96.0/22,4668,LG CNS,NSP,8745,513495040,2622369792,unknown,same
+18.176.39.124,true,18.176.0.0/12,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,rDNS ec2-18-176-39-124.ap-northeast-1.compute.amazonaws.com
+74.153.107.221,true,74.144.0.0/12,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+3.160.116.176,true,3.128.0.0/10,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,rDNS server-3-160-116-176.eze50.r.cloudfront.net
+47.10.61.63,true,47.10.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+40.220.34.219,true,40.220.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+217.161.252.167,true,217.161.0.0/16,1273,IDDQD-AS,NSP,24008,513495040,2622369792,not-hosting,
+57.105.254.216,true,57.104.0.0/13,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+93.92.198.147,true,93.92.198.0/24,31376,SMART-AS Smart Telecom Limited,NSP,,513495040,2622369792,unknown,"rDNS lk.rks-energo.ru; ISP customer block, use unclear"
+208.154.17.206,true,208.152.0.0/14,3561,"CenturyLink Communications, LLC",NSP,765,513495040,2622369792,hosting,
+216.55.146.49,true,216.55.144.0/20,30447,Internet Names For Business Inc.,Content,,513495040,2622369792,hosting,rDNS web49c45.carrierzone.com
+101.136.38.134,true,101.136.0.0/15,17709,Asia Pacific Telecom,NSP,408,513495040,2622369792,not-hosting,rDNS 101-136-38-134.mobile.dynamic.aptg.com.tw
+51.121.231.127,true,51.121.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+58.0.242.40,true,58.0.0.0/16,8220,COLT COLT Technology Services Group Limited,NSP,72156,513495040,2622369792,unknown,"business carrier block, use unclear"
+130.162.189.207,true,130.162.128.0/18,31898,Oracle Corporation,Content,285776,513495040,2622369792,hosting,
+16.148.66.86,true,16.148.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,rDNS ec2-16-148-66-86.us-west-2.compute.amazonaws.com
+77.112.145.182,true,77.112.0.0/14,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,rDNS ec2-77-112-145-182.us-east-2.compute.amazonaws.com
+135.183.220.249,true,135.183.0.0/16,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+112.73.76.183,true,112.73.76.0/23,2914,"NTT America, Inc.",NSP,30309,513495040,2622369792,unknown,"transit customer block, use unclear"
+130.61.176.157,true,130.61.0.0/16,31898,Oracle Corporation,Content,285776,513495040,2622369792,hosting,
+20.111.26.41,true,20.64.0.0/10,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+153.47.11.118,true,153.47.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+20.151.145.203,true,20.150.0.0/15,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+154.3.227.26,true,154.3.226.0/23,174,"Cogent Communications, LLC",NSP,529488,513495040,2622369792,unknown,same
+35.51.173.44,true,35.51.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+16.131.169.132,true,16.128.0.0/14,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+20.46.106.61,true,20.46.0.0/16,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+16.166.219.76,true,16.166.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+216.244.25.75,true,216.244.16.0/20,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+198.186.172.235,true,198.186.172.0/24,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,rDNS host-198-186-172-235.pixidpro.eu.com
+103.165.192.154,true,103.165.192.0/23,142052,Mempool Space K.K.,Enterprise,,513495040,2622369792,hosting,
+51.170.80.153,true,51.170.80.0/20,31898,Oracle Corporation,Content,285776,513495040,2622369792,hosting,
+18.158.200.67,true,18.156.0.0/14,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,rDNS ec2-18-158-200-67.eu-central-1.compute.amazonaws.com
+192.99.48.73,true,192.99.0.0/16,16276,OVH OVH SAS,Content,1047774,513495040,2622369792,hosting,
+173.194.103.120,true,173.194.0.0/16,15169,Google LLC,Content,1173819,513495040,2622369792,hosting,
+13.58.153.253,true,13.32.0.0/11,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,rDNS ec2-13-58-153-253.us-east-2.compute.amazonaws.com
+4.37.90.203,true,4.36.0.0/15,3356,"Level 3 Parent, LLC",NSP,561566,513495040,2622369792,unknown,same
+17.218.255.122,true,17.192.0.0/11,714,Apple Inc.,Content,14766,513495040,2622369792,unknown,same
+40.103.120.36,true,40.96.0.0/13,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+193.155.250.50,true,193.155.240.0/20,702,Verizon Business,NSP,6870,513495040,2622369792,not-hosting,
+141.192.158.38,true,141.192.0.0/16,1342,IDDQD-AS,Content,,513495040,2622369792,unknown,rDNS 141192158038.edelkey.net; same
+40.117.165.182,true,40.112.0.0/13,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+56.14.137.223,true,56.8.0.0/13,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+121.40.173.34,true,121.40.0.0/14,37963,"Hangzhou Alibaba Advertising Co.,Ltd.",Content,296930,513495040,2622369792,hosting,
+130.17.89.3,true,130.17.88.0/22,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,rDNS r3-89-17-130.ptr.cjm.adobe.com
+141.77.183.175,true,141.77.0.0/16,203329,ESHELTER NTT Global Data Centers EMEA GmbH,NSP,330,513495040,2622369792,hosting,same
+35.75.198.147,true,35.72.0.0/13,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,unknown,rDNS ec2-35-75-198-147.ap-northeast-1.compute.amazonaws.com
+13.117.200.138,true,13.117.0.0/16,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+195.193.236.222,true,195.193.0.0/16,702,Verizon Business,NSP,6870,513495040,2622369792,not-hosting,
+168.183.139.53,true,168.183.128.0/20,10879,Unitedhealthcare,Enterprise,1324,513495040,2622369792,not-hosting,
+62.105.245.125,true,62.105.224.0/19,3257,GTT-BACKBONE GTT Communications Inc.,NSP,83593,513495040,2622369792,not-hosting,rDNS 62-105-245-125.easynet.nl
+161.152.34.180,true,161.152.0.0/16,9328,DATACOM SYSTEMS (AU) PTY LTD,NSP,221,513495040,2622369792,not-hosting,
+184.228.249.32,true,184.224.0.0/11,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+149.52.157.211,true,149.52.128.0/17,174,"Cogent Communications, LLC",NSP,529488,513495040,2622369792,unknown,same
+54.253.113.92,true,54.248.0.0/13,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,rDNS ec2-54-253-113-92.ap-southeast-2.compute.amazonaws.com
+152.42.168.86,true,152.42.128.0/17,14061,"DigitalOcean, LLC",Content,465566,513495040,2622369792,hosting,
+44.233.108.13,true,44.224.0.0/11,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,rDNS ec2-44-233-108-13.us-west-2.compute.amazonaws.com
+40.126.153.245,true,40.126.128.0/17,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+31.133.0.239,true,31.133.0.0/21,51290,HOSTEAM-AS BARTOSZ WASZAK trading as HOSTEAM S.C. TOMASZ GROSZEWSKI BARTOSZ WASZAK LUKASZ GROSZEWSKI,Content,196,513495040,2622369792,hosting,rDNS ip-31-133-0-239.hosteam.net.pl
+1.117.63.83,true,1.116.0.0/15,45090,Shenzhen Tencent Computer Systems Company Limited,Content,708871,513495040,2622369792,hosting,
+4.115.21.145,true,4.96.0.0/11,3356,"Level 3 Parent, LLC",NSP,561566,513495040,2622369792,unknown,same
+8.119.12.150,true,8.96.0.0/11,3356,"Level 3 Parent, LLC",NSP,561566,513495040,2622369792,unknown,same
+38.110.118.48,true,38.110.116.0/22,174,"Cogent Communications, LLC",NSP,529488,513495040,2622369792,unknown,same
+166.100.227.105,true,166.100.0.0/16,2687,"AT&T Enterprises, LLC",NSP,1459,513495040,2622369792,not-hosting,
+56.236.69.1,true,56.236.0.0/16,16509,"Amazon.com, Inc.",Enterprise,3304065,513495040,2622369792,hosting,
+217.134.73.66,true,217.134.0.0/15,1273,IDDQD-AS,NSP,24008,513495040,2622369792,not-hosting,
+20.161.65.225,true,20.160.0.0/12,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+153.122.206.151,true,153.122.0.0/16,131921,GMO GlobalSign Holdings K.K.,Content,5498,513495040,2622369792,hosting,
+48.163.112.77,true,48.160.0.0/11,8075,Microsoft Corporation,Content,355133,513495040,2622369792,hosting,
+209.117.108.247,true,209.117.96.0/19,2828,Verizon Business,NSP,811,513495040,2622369792,not-hosting,
