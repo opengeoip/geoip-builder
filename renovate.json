@@ -16,7 +16,7 @@
   "packageRules": [
     {
       "matchManagers": ["cargo"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchUpdateTypes": ["patch"],
       "groupName": "Rust dependencies"
     },
     {
@@ -26,6 +26,15 @@
     {
       "matchManagers": ["dockerfile"],
       "groupName": "Container base image"
+    },
+    {
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest", "lockFileMaintenance"],
+      "automerge": true
+    },
+    {
+      "matchCurrentVersion": "/^v?0\\./",
+      "matchUpdateTypes": ["minor"],
+      "automerge": false
     }
   ],
   "dockerfile": {
