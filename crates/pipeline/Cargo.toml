@@ -28,3 +28,6 @@ src-delegated.workspace = true
 src-geofeed.workspace = true
 src-rpki.workspace = true
 src-rpsl.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
