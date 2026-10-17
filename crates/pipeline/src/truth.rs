@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
@@ -10,6 +10,7 @@ use model::PrefixMap;
 use serde::Deserialize;
 use src_atlas::Probe;
 
+use crate::io::open;
 use crate::{Log, sources};
 
 #[derive(Deserialize)]
@@ -91,12 +92,11 @@ struct AnycastRow {
 pub fn anycast(data_dir: &Path) -> Result<PrefixMap<()>> {
     let mut map = PrefixMap::default();
     for version in [4, 6] {
-        let path = sources::anycast(version).path(data_dir);
-        if !path.exists() {
+        let source = sources::anycast(version);
+        if !source.path(data_dir).exists() {
             continue;
         }
-        let text = fs::read_to_string(&path)?;
-        let mut reader = csv::Reader::from_reader(text.as_bytes());
+        let mut reader = csv::Reader::from_reader(open(data_dir, &source)?);
         for row in reader.deserialize::<AnycastRow>() {
             map.insert(row?.prefix, ());
         }
