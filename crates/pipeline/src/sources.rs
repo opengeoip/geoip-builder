@@ -68,7 +68,8 @@ pub fn violating_probes(file: &str) -> Source {
 
 pub fn anycast(version: u8) -> Source {
     Source::new(
-        format!("anycast-ipv{version}.csv.gz"),
+        // Served with Content-Encoding: gzip, so stored decompressed.
+        format!("anycast-ipv{version}.csv"),
         format!("https://manycast.net/api/v1/export/IPv{version}-latest.csv.gz"),
     )
 }

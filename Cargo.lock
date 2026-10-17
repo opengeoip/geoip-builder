@@ -651,6 +651,7 @@ dependencies = [
  "src-geofeed",
  "src-rpki",
  "src-rpsl",
+ "tempfile",
 ]
 
 [[package]]
