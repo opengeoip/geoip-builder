@@ -68,10 +68,8 @@ pub fn violating_probes(file: &str) -> Source {
 
 pub fn anycast(version: u8) -> Source {
     Source::new(
-        format!("anycast-ipv{version}.csv"),
-        format!(
-            "https://raw.githubusercontent.com/ut-dacs/anycast-census/main/IPv{version}-latest.csv"
-        ),
+        format!("anycast-ipv{version}.csv.gz"),
+        format!("https://manycast.net/api/v1/export/IPv{version}-latest.csv.gz"),
     )
 }
 
