@@ -13,7 +13,7 @@ rust-version = "1.88"
 [workspace.dependencies]
 anyhow = "1.0.104"
 bzip2 = "0.6.1"
-bgpkit-parser = { version = "0.22.0", default-features = false, features = ["parser"] }
+bgpkit-parser = { version = "0.23.0", default-features = false, features = ["parser"] }
 csv = "1.4.0"
 clap = { version = "4.6.7", features = ["derive"] }
 flate2 = "1.1.10"
