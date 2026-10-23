@@ -8,7 +8,6 @@
     "docker:pinDigests"
   ],
   "timezone": "Europe/Paris",
-  "automergeType": "branch",
   "schedule": ["on monday"],
   "lockFileMaintenance": {
     "enabled": true,
