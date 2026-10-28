@@ -6,17 +6,22 @@ use std::time::Duration;
 
 use anyhow::Result;
 use fetch::{Fetcher, Source};
+use ipnet::IpNet;
 use src_arin::NetRange;
 
 use model::date::today;
 use model::hash::fnv1a;
+use model::range_to_networks;
 
 use crate::{Log, sources};
 
 pub struct Check {
+    pub sampled: usize,
     pub matching: usize,
     pub differing: usize,
     pub failed: usize,
+    pub withdrawn: usize,
+    pub withdrawn_networks: Vec<IpNet>,
 }
 
 pub fn run(data_dir: &Path, sample: usize, interval: Duration, log: &mut Log<'_>) -> Result<Check> {
@@ -30,6 +35,8 @@ pub fn run(data_dir: &Path, sample: usize, interval: Duration, log: &mut Log<'_>
 
     let fetcher = Fetcher::new(data_dir.join("arin-rdap"))?;
     let (mut matching, mut differing, mut failed) = (0, 0, 0);
+    let mut withdrawn = 0;
+    let mut withdrawn_networks = Vec::new();
     for (index, range) in candidates.iter().enumerate() {
         if index > 0 {
             thread::sleep(interval);
@@ -57,7 +64,9 @@ pub fn run(data_dir: &Path, sample: usize, interval: Duration, log: &mut Log<'_>
                 ));
             }
             None => {
-                differing += 1;
+                withdrawn += 1;
+                withdrawn_networks
+                    .extend(range_to_networks(range.start, range.end).unwrap_or_default());
                 log(format!(
                     "arin check: {} lists {:?}, RDAP no longer has this network",
                     range.handle,
@@ -67,13 +76,16 @@ pub fn run(data_dir: &Path, sample: usize, interval: Duration, log: &mut Log<'_>
         }
     }
     log(format!(
-        "arin check: {matching} matching, {differing} differing, {failed} failed, out of {} sampled",
+        "arin check: {matching} matching, {differing} differing, {withdrawn} withdrawn, {failed} failed, out of {} sampled",
         candidates.len()
     ));
     Ok(Check {
+        sampled: candidates.len(),
         matching,
         differing,
         failed,
+        withdrawn,
+        withdrawn_networks,
     })
 }
 
