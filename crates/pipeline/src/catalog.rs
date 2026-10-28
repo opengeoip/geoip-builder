@@ -1,10 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use ipnet::IpNet;
 use model::{Asn, Assignment, GeofeedRef, Location, Registry};
 use src_geofeed::list;
 
@@ -60,10 +61,14 @@ pub fn path(data_dir: &Path, spec: &str) -> PathBuf {
     }
 }
 
-fn discovered(data_dir: &Path, log: &mut Log<'_>) -> Result<Vec<list::Row>> {
+fn discovered(data_dir: &Path, withdrawn: &[IpNet], log: &mut Log<'_>) -> Result<Vec<list::Row>> {
+    let withdrawn: HashSet<&IpNet> = withdrawn.iter().collect();
     Ok(rpsl_records(data_dir, log)?
         .references
         .into_iter()
+        .filter(|(registry, reference)| {
+            *registry != Registry::Arin || !withdrawn.contains(&reference.network)
+        })
         .map(|(registry, reference)| list::Row {
             url: reference.url,
             network: Some(reference.network),
@@ -73,8 +78,13 @@ fn discovered(data_dir: &Path, log: &mut Log<'_>) -> Result<Vec<list::Row>> {
         .collect())
 }
 
-pub fn refresh(data_dir: &Path, catalog: &Path, log: &mut Log<'_>) -> Result<()> {
-    let rows = list::merge_discovered(catalog, discovered(data_dir, log)?)?;
+pub fn refresh(
+    data_dir: &Path,
+    catalog: &Path,
+    withdrawn: &[IpNet],
+    log: &mut Log<'_>,
+) -> Result<()> {
+    let rows = list::merge_discovered(catalog, discovered(data_dir, withdrawn, log)?)?;
     log(format!("{}: {rows} rows", catalog.display()));
     Ok(())
 }
@@ -103,14 +113,16 @@ pub fn discover(options: &DiscoverOptions<'_>, log: &mut Log<'_>) -> Result<()> 
         Duration::from_secs(1),
         log,
     )?;
-    if check.differing > 0 {
-        anyhow::bail!(
-            "{} sampled ARIN records differ from RDAP, refusing the ARIN geofeed references",
-            check.differing
-        );
+    accept(&check)?;
+    if !check.withdrawn_networks.is_empty() {
+        log(format!(
+            "arin check: dropping {} networks that RDAP no longer has",
+            check.withdrawn_networks.len()
+        ));
     }
+    let withdrawn = &check.withdrawn_networks;
     let Some(manual) = options.manual else {
-        return refresh(options.data_dir, options.output, log);
+        return refresh(options.data_dir, options.output, withdrawn, log);
     };
     let manual = list::read_manual(manual)?;
     let problems = list::problems(&manual);
@@ -119,9 +131,32 @@ pub fn discover(options: &DiscoverOptions<'_>, log: &mut Log<'_>) -> Result<()> 
     }
     let rows = list::write(
         options.output,
-        manual.into_iter().chain(discovered(options.data_dir, log)?),
+        manual
+            .into_iter()
+            .chain(discovered(options.data_dir, withdrawn, log)?),
     )?;
     log(format!("{}: {rows} rows", options.output.display()));
+    Ok(())
+}
+
+// A network RDAP no longer has is only stale, and its reference is dropped. Many of
+// them in one sample point at the ARIN file itself.
+const MAX_WITHDRAWN_PERCENT: usize = 30;
+
+fn accept(check: &arin_check::Check) -> Result<()> {
+    if check.differing > 0 {
+        anyhow::bail!(
+            "{} sampled ARIN records differ from RDAP, refusing the ARIN geofeed references",
+            check.differing
+        );
+    }
+    if check.withdrawn > 0 && check.withdrawn * 100 >= check.sampled * MAX_WITHDRAWN_PERCENT {
+        anyhow::bail!(
+            "{} of {} sampled ARIN records are gone from RDAP, refusing the ARIN geofeed references",
+            check.withdrawn,
+            check.sampled
+        );
+    }
     Ok(())
 }
 
@@ -210,4 +245,36 @@ pub fn read_feeds<'a>(
         }
     }
     (feeds, missing)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn check(differing: usize, withdrawn: usize) -> arin_check::Check {
+        arin_check::Check {
+            sampled: 10,
+            matching: 10 - differing - withdrawn,
+            differing,
+            failed: 0,
+            withdrawn,
+            withdrawn_networks: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn accepts_a_few_withdrawn_networks() {
+        assert!(accept(&check(0, 0)).is_ok());
+        assert!(accept(&check(0, 2)).is_ok());
+    }
+
+    #[test]
+    fn refuses_many_withdrawn_networks() {
+        assert!(accept(&check(0, 3)).is_err());
+    }
+
+    #[test]
+    fn refuses_any_differing_geofeed() {
+        assert!(accept(&check(1, 0)).is_err());
+    }
 }

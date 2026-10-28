@@ -105,7 +105,7 @@ pub fn fetch(options: &FetchOptions<'_>, log: &mut Log<'_>) -> Result<()> {
             }
         }
     } else {
-        catalog::refresh(options.data_dir, Path::new(options.geofeeds), log)?;
+        catalog::refresh(options.data_dir, Path::new(options.geofeeds), &[], log)?;
     }
     geofeeds(options, log)?;
     if !failed.is_empty() {
