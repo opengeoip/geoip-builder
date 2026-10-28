@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.9](https://github.com/opengeoip/geoip-builder/compare/v0.4.8...v0.4.9) - 2026-10-28
+
+### Fixed
+
+- drop ARIN references that RDAP no longer has ([#64](https://github.com/opengeoip/geoip-builder/pull/64))
+
 ## [0.4.8](https://github.com/opengeoip/geoip-builder/compare/v0.4.7...v0.4.8) - 2026-10-26
 
 ### Other
