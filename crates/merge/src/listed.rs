@@ -83,12 +83,14 @@ pub fn authorize_listed_geofeeds(
 
 #[cfg(test)]
 mod tests {
+    use model::Country;
+
     use super::*;
 
     fn location(network: &str) -> Location {
         Location {
             network: network.parse().unwrap(),
-            country: Some("US".into()),
+            country: Country::parse("US"),
             region: None,
             city: None,
             postal: None,
