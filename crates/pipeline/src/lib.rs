@@ -3,6 +3,7 @@ pub mod build;
 pub mod candidates;
 pub mod catalog;
 pub mod coverage;
+pub mod export;
 pub mod fetch;
 pub mod sources;
 pub mod truth;
