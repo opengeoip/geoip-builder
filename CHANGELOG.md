@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.11](https://github.com/opengeoip/geoip-builder/compare/v0.4.10...v0.4.11) - 2026-10-29
+
+### Added
+
+- export the databases as GeoLite2 CSV files ([#69](https://github.com/opengeoip/geoip-builder/pull/69))
+
 ## [0.4.10](https://github.com/opengeoip/geoip-builder/compare/v0.4.9...v0.4.10) - 2026-10-29
 
 ### Added
