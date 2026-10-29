@@ -11,6 +11,15 @@ Each address gets the country of the most precise source that knows about it. Th
 
 `registered_country` always keeps the registry's value. The city database adds region, city and postal code when a geofeed provides them.
 
+## Country codes
+
+Every source goes through the same filter before a country reaches a database: only ISO 3166-1 alpha-2 codes are kept, plus two exceptions.
+
+- `UK` becomes `GB`. Some operators write it in registry objects and geofeeds.
+- `XK` (Kosovo) is kept, in Europe. It is a user-assigned code, but GeoNames and MaxMind use it, so clients already expect it.
+
+Anything else is dropped: `EU` and `AP` (regions), `ZZ` (unknown), withdrawn codes such as `YU`, `CS`, `AN`, `SU` or `FX`, and the typos seen in geofeeds (`AB`, `NY`, `OS`...). A registry object or geofeed entry with such a code is ignored, as if it had no country, and the less precise layer underneath answers. The RIPE NCC statistics record a few hundred blocks as `EU`: they get no country of their own, but still count as RIPE NCC space, so sub-allocations and geofeeds inside them apply, without a `registered_country`.
+
 ## Which geofeeds are trusted
 
 A geofeed is a CSV file in which an operator says where its prefixes are ([RFC 8805](https://www.rfc-editor.org/rfc/rfc8805)). Anyone can publish one, so an entry is only kept when its publisher owns the prefix:
