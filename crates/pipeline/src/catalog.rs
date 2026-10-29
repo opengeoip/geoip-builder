@@ -63,7 +63,7 @@ pub fn path(data_dir: &Path, spec: &str) -> PathBuf {
 
 fn discovered(data_dir: &Path, withdrawn: &[IpNet], log: &mut Log<'_>) -> Result<Vec<list::Row>> {
     let withdrawn: HashSet<&IpNet> = withdrawn.iter().collect();
-    Ok(rpsl_records(data_dir, log)?
+    let rows: Vec<list::Row> = rpsl_records(data_dir, log)?
         .references
         .into_iter()
         .filter(|(registry, reference)| {
@@ -75,7 +75,14 @@ fn discovered(data_dir: &Path, withdrawn: &[IpNet], log: &mut Log<'_>) -> Result
             source: registry.as_str().to_string(),
             asn: Vec::new(),
         })
-        .collect())
+        .collect();
+    let discovered = rows.len();
+    let rows = list::aggregate(rows);
+    log(format!(
+        "geofeed references: {discovered} discovered, {} after merging contiguous networks",
+        rows.len()
+    ));
+    Ok(rows)
 }
 
 pub fn refresh(
