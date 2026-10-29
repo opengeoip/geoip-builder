@@ -10,7 +10,7 @@ use std::time::Duration;
 use anyhow::Result;
 use fetch::{Fetcher, Outcome, Source};
 use ipnet::IpNet;
-use model::Location;
+use model::{Country, Location};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ParseStats {
@@ -87,7 +87,7 @@ fn parse_line(line: &str) -> Option<Location> {
             if code.len() != 2 || !code.bytes().all(|b| b.is_ascii_alphabetic()) {
                 return None;
             }
-            model::continent::iso_country(&code).map(str::to_string)
+            Country::parse(&code)
         }
         None => None,
     };
@@ -95,7 +95,7 @@ fn parse_line(line: &str) -> Option<Location> {
         let region = region.to_ascii_uppercase();
         match (&country, region.split_once('-')) {
             (Some(country), Some((prefix, code)))
-                if prefix == country
+                if prefix == country.as_str()
                     && (1..=3).contains(&code.len())
                     && code.bytes().all(|b| b.is_ascii_alphanumeric()) =>
             {
@@ -217,21 +217,21 @@ mod tests {
                 invalid: 2
             }
         );
-        assert_eq!(locations[0].country.as_deref(), Some("NL"));
+        assert_eq!(locations[0].country.map(Country::as_str), Some("NL"));
         assert_eq!(locations[0].region.as_deref(), Some("NH"));
         assert_eq!(locations[0].city.as_deref(), Some("Amsterdam"));
         assert_eq!(locations[0].postal.as_deref(), Some("1098 XH"));
-        assert_eq!(locations[1].country.as_deref(), Some("DE"));
+        assert_eq!(locations[1].country.map(Country::as_str), Some("DE"));
         assert_eq!(locations[1].postal, None);
         assert_eq!(locations[2].country, None);
         assert_eq!(locations[3].region, None);
         assert_eq!(locations[4].city.as_deref(), Some("Lampasas, TX"));
-        assert_eq!(locations[4].country.as_deref(), Some("US"));
+        assert_eq!(locations[4].country.map(Country::as_str), Some("US"));
         assert_eq!(locations[4].postal.as_deref(), Some("76\"550"));
-        assert_eq!(locations[5].country.as_deref(), Some("GB"));
+        assert_eq!(locations[5].country.map(Country::as_str), Some("GB"));
         assert_eq!(locations[5].region, None);
         assert_eq!(locations[6].country, None);
-        assert_eq!(locations[7].country.as_deref(), Some("XK"));
+        assert_eq!(locations[7].country.map(Country::as_str), Some("XK"));
         assert_eq!(locations[8].region, None);
         assert_eq!(locations[8].city, None);
         assert_eq!(locations[8].postal, None);
