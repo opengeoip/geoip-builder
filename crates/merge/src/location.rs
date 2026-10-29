@@ -1,6 +1,5 @@
 use mmdb_writer::{Value, Writer};
-use model::continent::iso_country;
-use model::{Assignment, Delegation, Location, PrefixMap, Registry};
+use model::{Assignment, Country, Delegation, Location, PrefixMap, Registry};
 
 use crate::{clear_special_ranges, writer};
 
@@ -16,13 +15,17 @@ fn iso(code: &str) -> Value {
     Value::map([("iso_code", Value::string(code))])
 }
 
-type Owner = (Option<&'static str>, Registry);
+fn iso_country(country: Country) -> Value {
+    iso(country.as_str())
+}
 
-fn base(country: &str, owner: Option<Owner>) -> Vec<(&'static str, Value)> {
-    let mut entries = vec![("country", iso(country))];
+type Owner = (Option<Country>, Registry);
+
+fn base(country: Country, owner: Option<Owner>) -> Vec<(&'static str, Value)> {
+    let mut entries = vec![("country", iso_country(country))];
     if let Some((registered, registry)) = owner {
         if let Some(registered) = registered {
-            entries.push(("registered_country", iso(registered)));
+            entries.push(("registered_country", iso_country(registered)));
         }
         entries.push(("registry", Value::string(registry.as_str())));
     }
@@ -50,9 +53,9 @@ pub fn location_dbs(
 
     let mut registered: PrefixMap<Owner> = PrefixMap::default();
     for delegation in &delegations {
-        let owner = (iso_country(&delegation.country), delegation.registry);
+        let owner = (delegation.country, delegation.registry);
         registered.insert(delegation.network, owner);
-        let Some(country) = owner.0 else {
+        let Some(country) = delegation.country else {
             continue;
         };
         let value = Value::map(base(country, Some(owner)));
@@ -69,7 +72,7 @@ pub fn location_dbs(
             continue;
         };
         applied += 1;
-        let value = Value::map(base(assignment.country(), Some(*owner)));
+        let value = Value::map(base(assignment.country, Some(*owner)));
         country_db.insert(assignment.network, &value);
         city_db.insert(assignment.network, &value);
     }
@@ -79,7 +82,7 @@ pub fn location_dbs(
         layer.sort_by_key(|l| l.network.prefix_len());
         geofeed_entries += layer.len();
         for location in &layer {
-            let Some(country) = location.country.as_deref().and_then(iso_country) else {
+            let Some(country) = location.country else {
                 continue;
             };
             let owner = registered
@@ -124,7 +127,7 @@ mod tests {
     fn delegation(network: &str, country: &str, registry: Registry) -> Delegation {
         Delegation {
             network: network.parse().unwrap(),
-            country: country.into(),
+            country: Country::parse(country),
             registry,
         }
     }
@@ -159,10 +162,10 @@ mod tests {
         assert_eq!(country("2002:c0a8:101::1"), None);
     }
 
-    fn assignment(network: &str, country: &[u8; 2], registry: Registry) -> Assignment {
+    fn assignment(network: &str, country: &str, registry: Registry) -> Assignment {
         Assignment {
             network: network.parse().unwrap(),
-            country: *country,
+            country: Country::parse(country).unwrap(),
             registry,
         }
     }
@@ -171,15 +174,15 @@ mod tests {
     fn inetnum_countries_refine_delegations_of_their_registry() {
         let delegations = vec![delegation("90.0.0.0/9", "FR", Registry::RipeNcc)];
         let assignments = vec![
-            assignment("90.68.0.0/16", b"ES", Registry::RipeNcc),
-            assignment("90.68.1.0/24", b"FR", Registry::RipeNcc),
-            assignment("0.0.0.0/0", b"AU", Registry::Apnic),
-            assignment("90.70.0.0/16", b"DE", Registry::Apnic),
-            assignment("90.0.0.0/9", b"GB", Registry::RipeNcc),
+            assignment("90.68.0.0/16", "ES", Registry::RipeNcc),
+            assignment("90.68.1.0/24", "FR", Registry::RipeNcc),
+            assignment("0.0.0.0/0", "AU", Registry::Apnic),
+            assignment("90.70.0.0/16", "DE", Registry::Apnic),
+            assignment("90.0.0.0/9", "GB", Registry::RipeNcc),
         ];
         let locations = vec![Location {
             network: "90.68.2.0/23".parse().unwrap(),
-            country: Some("PT".into()),
+            country: Country::parse("PT"),
             region: None,
             city: None,
             postal: None,
@@ -202,10 +205,10 @@ mod tests {
     #[test]
     fn delegations_without_an_iso_country_still_anchor_their_registry() {
         let delegations = vec![delegation("139.191.0.0/16", "EU", Registry::RipeNcc)];
-        let assignments = vec![assignment("139.191.1.0/24", b"BE", Registry::RipeNcc)];
+        let assignments = vec![assignment("139.191.1.0/24", "BE", Registry::RipeNcc)];
         let locations = vec![Location {
             network: "139.191.2.0/24".parse().unwrap(),
-            country: Some("LU".into()),
+            country: Country::parse("LU"),
             region: None,
             city: None,
             postal: None,
@@ -229,7 +232,7 @@ mod tests {
         let delegations = vec![delegation("3.0.0.0/8", "US", Registry::Arin)];
         let at = |network: &str, country: &str| Location {
             network: network.parse().unwrap(),
-            country: Some(country.into()),
+            country: Country::parse(country),
             region: None,
             city: None,
             postal: None,
@@ -250,7 +253,7 @@ mod tests {
         let delegations = vec![delegation("3.0.0.0/8", "US", Registry::Arin)];
         let locations = vec![Location {
             network: "3.64.0.0/12".parse().unwrap(),
-            country: Some("DE".into()),
+            country: Country::parse("DE"),
             region: Some("HE".into()),
             city: Some("Frankfurt am Main".into()),
             postal: None,

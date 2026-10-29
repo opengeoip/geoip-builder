@@ -18,7 +18,7 @@ Every source goes through the same filter before a country reaches a database: o
 - `UK` becomes `GB`. Some operators write it in registry objects and geofeeds.
 - `XK` (Kosovo) is kept, in Europe. It is a user-assigned code, but GeoNames and MaxMind use it, so clients already expect it.
 
-Anything else is dropped: `EU` and `AP` (regions), `ZZ` (unknown), withdrawn codes such as `YU`, `CS`, `AN`, `SU` or `FX`, and the typos seen in geofeeds (`AB`, `NY`, `OS`...). A registry object or geofeed entry with such a code is ignored, as if it had no country, and the less precise layer underneath answers. The RIPE NCC statistics record a few hundred blocks as `EU`: they get no country of their own, but still count as RIPE NCC space, so sub-allocations and geofeeds inside them apply, without a `registered_country`.
+Anything else is dropped: `EU` and `AP` (regions), `ZZ` (unknown), withdrawn codes such as `YU`, `CS`, `AN`, `SU` or `FX`, and the typos seen in geofeeds (`AB`, `NY`, `OS`...). A registry object or geofeed entry with such a code is ignored, as if it had no country, and the less precise layer underneath answers. A block of the registry statistics with such a code (the RIPE NCC records a few hundred as `EU`) gets no country of its own, but still counts as space of that registry, so sub-allocations and geofeeds inside it apply, without a `registered_country`.
 
 ## Which geofeeds are trusted
 
