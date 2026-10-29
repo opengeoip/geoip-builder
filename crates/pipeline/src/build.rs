@@ -10,7 +10,7 @@ use src_rpki::Validator;
 
 use crate::catalog::{self, geofeed_dir, read_feed, read_feeds};
 use crate::io::{open, write};
-use crate::{Log, sources};
+use crate::{Log, export, sources};
 
 pub struct Inputs<'a> {
     pub data_dir: &'a Path,
@@ -175,7 +175,7 @@ fn write_logged(writer: mmdb_writer::Writer, path: &Path, log: &mut Log<'_>) -> 
     Ok(())
 }
 
-pub fn build(inputs: &Inputs<'_>, out_dir: &Path, log: &mut Log<'_>) -> Result<()> {
+pub fn build(inputs: &Inputs<'_>, out_dir: &Path, csv: bool, log: &mut Log<'_>) -> Result<()> {
     fs::create_dir_all(out_dir)?;
     let prepared = prepare(inputs, log)?;
     let (asn, unnamed) = merge::asn_db(
@@ -204,5 +204,21 @@ pub fn build(inputs: &Inputs<'_>, out_dir: &Path, log: &mut Log<'_>) -> Result<(
     ));
     write_logged(country, &out_dir.join("country.mmdb"), log)?;
     write_logged(city, &out_dir.join("city.mmdb"), log)?;
+    if csv {
+        export_csv(out_dir, log)?;
+    }
     Ok(())
+}
+
+pub fn export_csv(out_dir: &Path, log: &mut Log<'_>) -> Result<()> {
+    let dir = out_dir.join("csv");
+    fs::create_dir_all(&dir)?;
+    let reader = |name: &str| {
+        let path = out_dir.join(format!("{name}.mmdb"));
+        maxminddb::Reader::open_readfile(&path)
+            .with_context(|| format!("opening {}", path.display()))
+    };
+    export::locations(&reader("country")?, &dir, "country", false, log)?;
+    export::locations(&reader("city")?, &dir, "city", true, log)?;
+    export::asn(&reader("asn")?, &dir, "asn", log)
 }

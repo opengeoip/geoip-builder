@@ -6,6 +6,7 @@
 geoip-builder run                 # fetch, then build
 geoip-builder fetch               # download every source into data/
 geoip-builder build               # write out/country.mmdb, city.mmdb and asn.mmdb
+geoip-builder build --csv         # also write the databases as CSV files in out/csv/
 ```
 
 `fetch` downloads the bulk sources and the latest [geofeed catalog](https://github.com/opengeoip/geofeeds), then every geofeed it lists. It uses conditional requests, so a run where nothing changed is quick. When a download fails, the previous copy is kept and `fetch` exits with an error at the end. Failed geofeeds are listed in `data/geofeeds/failures.tsv`.
@@ -18,12 +19,31 @@ A first `fetch` takes about 8 minutes for about 900 MB. `build` takes about 50 s
 |---|---|---|
 | `--data-dir` | `data` | where sources are downloaded |
 | `--out-dir` | `out` | where databases are written (`build`, `run`) |
+| `--csv` | off | also write the databases as CSV files (`build`, `run`) |
 | `--geofeeds` | latest `opengeoip/geofeeds` release | the geofeed catalog, as a URL or a local file |
 | `--collector` | `rrc00` | RIPE RIS collector to use, repeatable |
 | `--vrps-url` | rpki-client export | RPKI data, for example from a local Routinator |
 | `--rpki-valid-only` | off | keep only RPKI-valid routes in the ASN database |
 | `--geofeed-workers` | `32` | geofeed hosts crawled in parallel |
 | `--arin-check-sample` | `10` | ARIN records double-checked over RDAP on each `fetch` |
+
+## CSV files
+
+```sh
+geoip-builder export-csv          # convert out/*.mmdb into out/csv/
+```
+
+`--csv` and `export-csv` write the databases in the layout of the GeoLite2 CSV downloads, with the same columns, so that existing import scripts work. Each file is compressed with gzip, about 22 MB in all (165 MB once decompressed with `gunzip` or read with `zcat`):
+
+| File | GeoLite2 equivalent |
+|---|---|
+| `country-blocks-ipv4.csv.gz`, `country-blocks-ipv6.csv.gz` | `GeoLite2-Country-Blocks-IPv4.csv`, `-IPv6.csv` |
+| `country-locations-en.csv.gz` | `GeoLite2-Country-Locations-en.csv` |
+| `city-blocks-ipv4.csv.gz`, `city-blocks-ipv6.csv.gz` | `GeoLite2-City-Blocks-IPv4.csv`, `-IPv6.csv` |
+| `city-locations-en.csv.gz` | `GeoLite2-City-Locations-en.csv` |
+| `asn-blocks-ipv4.csv.gz`, `asn-blocks-ipv6.csv.gz` | `GeoLite2-ASN-Blocks-IPv4.csv`, `-IPv6.csv` |
+
+The CSV files are read back from the `.mmdb` files, so both give the same answer for every address. The blocks point to the locations through `geoname_id`, but the databases have no GeoNames data: the identifiers are made up and do not match MaxMind's. A country gets a small number derived from its code (`FR` is 18002), a region or city a number above 16777216 derived from its country, region and city names. Both stay the same from one build to the next. Columns without a source stay empty: country and region names, coordinates, accuracy radius, metro code and time zone. `is_anonymous_proxy` and `is_satellite_provider` are always `0`, `is_anycast` is always empty.
 
 ## Building your own catalog
 

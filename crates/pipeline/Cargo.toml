@@ -14,6 +14,7 @@ csv.workspace = true
 fetch.workspace = true
 flate2.workspace = true
 ipnet.workspace = true
+ipnetwork.workspace = true
 maxminddb.workspace = true
 merge.workspace = true
 mmdb-writer.workspace = true

@@ -637,6 +637,7 @@ dependencies = [
  "fetch",
  "flate2",
  "ipnet",
+ "ipnetwork",
  "maxminddb",
  "merge",
  "mmdb-writer",

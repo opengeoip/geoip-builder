@@ -131,10 +131,18 @@ enum Command {
         data: DataArgs,
         #[arg(long, default_value = "out")]
         out_dir: PathBuf,
+        #[arg(long)]
+        csv: bool,
     },
     Run {
         #[command(flatten)]
         data: DataArgs,
+        #[arg(long, default_value = "out")]
+        out_dir: PathBuf,
+        #[arg(long)]
+        csv: bool,
+    },
+    ExportCsv {
         #[arg(long, default_value = "out")]
         out_dir: PathBuf,
     },
@@ -218,15 +226,16 @@ fn main() -> Result<()> {
             &mut log,
         ),
         Command::CheckCatalog { catalogs, manual } => check_catalogs(&catalogs, manual),
-        Command::Build { data, out_dir } => {
+        Command::Build { data, out_dir, csv } => {
             let catalog = data.catalog();
-            pipeline::build::build(&data.inputs(&catalog), &out_dir, &mut log)
+            pipeline::build::build(&data.inputs(&catalog), &out_dir, csv, &mut log)
         }
-        Command::Run { data, out_dir } => {
+        Command::Run { data, out_dir, csv } => {
             pipeline::fetch::fetch(&data.fetch(), &mut log)?;
             let catalog = data.catalog();
-            pipeline::build::build(&data.inputs(&catalog), &out_dir, &mut log)
+            pipeline::build::build(&data.inputs(&catalog), &out_dir, csv, &mut log)
         }
+        Command::ExportCsv { out_dir } => pipeline::build::export_csv(&out_dir, &mut log),
         Command::Candidates {
             data,
             truth,
