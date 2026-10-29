@@ -45,7 +45,7 @@ impl Continent {
     }
 }
 
-const COUNTRIES: [(&str, Continent); 249] = [
+const COUNTRIES: [(&str, Continent); 250] = [
     ("AD", Continent::Europe),
     ("AE", Continent::Asia),
     ("AF", Continent::Asia),
@@ -290,6 +290,7 @@ const COUNTRIES: [(&str, Continent); 249] = [
     ("VU", Continent::Oceania),
     ("WF", Continent::Oceania),
     ("WS", Continent::Oceania),
+    ("XK", Continent::Europe),
     ("YE", Continent::Asia),
     ("YT", Continent::Africa),
     ("ZA", Continent::Africa),
@@ -297,11 +298,21 @@ const COUNTRIES: [(&str, Continent); 249] = [
     ("ZW", Continent::Africa),
 ];
 
-pub fn continent(country: &str) -> Option<Continent> {
+fn entry(country: &str) -> Option<&'static (&'static str, Continent)> {
     COUNTRIES
         .binary_search_by(|(code, _)| (*code).cmp(country))
         .ok()
-        .map(|index| COUNTRIES[index].1)
+        .map(|index| &COUNTRIES[index])
+}
+
+pub fn continent(country: &str) -> Option<Continent> {
+    entry(country).map(|(_, continent)| *continent)
+}
+
+pub fn iso_country(code: &str) -> Option<&'static str> {
+    let code = code.trim().to_ascii_uppercase();
+    let code = if code == "UK" { "GB" } else { &code };
+    entry(code).map(|(code, _)| *code)
 }
 
 #[cfg(test)]
@@ -315,5 +326,18 @@ mod tests {
         assert_eq!(continent("BR"), Some(Continent::SouthAmerica));
         assert_eq!(continent("XX"), None);
         assert!(COUNTRIES.windows(2).all(|w| w[0].0 < w[1].0));
+    }
+
+    #[test]
+    fn keeps_only_iso_countries_and_kosovo() {
+        assert_eq!(iso_country("fr"), Some("FR"));
+        assert_eq!(iso_country("UK"), Some("GB"));
+        assert_eq!(iso_country("XK"), Some("XK"));
+        assert_eq!(continent("XK"), Some(Continent::Europe));
+        for code in [
+            "AB", "AN", "AP", "CS", "EU", "FX", "NT", "NY", "OS", "SU", "XG", "XW", "YU", "ZZ",
+        ] {
+            assert_eq!(iso_country(code), None, "{code}");
+        }
     }
 }

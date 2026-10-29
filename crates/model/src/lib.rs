@@ -121,12 +121,8 @@ impl Assignment {
 }
 
 pub fn country_code(value: &str) -> Option<[u8; 2]> {
-    let bytes = value.trim().as_bytes();
-    if bytes.len() != 2 || !bytes.iter().all(u8::is_ascii_alphabetic) {
-        return None;
-    }
-    let code = [bytes[0].to_ascii_uppercase(), bytes[1].to_ascii_uppercase()];
-    (code != *b"ZZ" && code != *b"EU").then_some(code)
+    let bytes = continent::iso_country(value)?.as_bytes();
+    Some([bytes[0], bytes[1]])
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
