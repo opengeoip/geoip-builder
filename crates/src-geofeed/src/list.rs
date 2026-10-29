@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
@@ -163,6 +163,85 @@ pub fn problems(rows: &[Row]) -> Vec<String> {
         .collect()
 }
 
+type Owners = BTreeSet<(String, String)>;
+
+// Merges two halves into their parent when they point at the same single geofeed, so a
+// registry split into many small objects does not blow up the catalog. The parent must
+// be absent or carry that same geofeed, and the closest anchor above it must list only
+// that geofeed: otherwise the most specific anchor seen by a geofeed entry would change.
+pub fn aggregate(rows: impl IntoIterator<Item = Row>) -> Vec<Row> {
+    let mut others = Vec::new();
+    let mut anchors: BTreeMap<IpNet, Owners> = BTreeMap::new();
+    for row in rows {
+        match row.network {
+            Some(network) if row.asn.is_empty() => {
+                anchors
+                    .entry(network.trunc())
+                    .or_default()
+                    .insert((row.url, row.source));
+            }
+            _ => others.push(row),
+        }
+    }
+    let mut by_length: BTreeMap<u8, Vec<IpNet>> = BTreeMap::new();
+    for network in anchors.keys() {
+        by_length
+            .entry(network.prefix_len())
+            .or_default()
+            .push(*network);
+    }
+    while let Some((_, networks)) = by_length.pop_last() {
+        for network in networks {
+            if let Some(parent) = merge_with_sibling(&mut anchors, network) {
+                by_length
+                    .entry(parent.prefix_len())
+                    .or_default()
+                    .push(parent);
+            }
+        }
+    }
+    others.extend(anchors.into_iter().flat_map(|(network, owners)| {
+        owners.into_iter().map(move |(url, source)| Row {
+            url,
+            network: Some(network),
+            source,
+            asn: Vec::new(),
+        })
+    }));
+    others
+}
+
+fn merge_with_sibling(anchors: &mut BTreeMap<IpNet, Owners>, network: IpNet) -> Option<IpNet> {
+    let owners = anchors.get(&network).filter(|owners| owners.len() == 1)?;
+    let parent = network.supernet()?;
+    let sibling = parent
+        .subnets(network.prefix_len())
+        .ok()?
+        .find(|half| *half != network)?;
+    if anchors.get(&sibling) != Some(owners) {
+        return None;
+    }
+    let (url, _) = owners.first()?;
+    let same_url = |above: &Owners| above.iter().all(|(other, _)| other == url);
+    match anchors.get(&parent) {
+        Some(above) if above != owners => return None,
+        Some(_) => {}
+        None if !closest_above(anchors, parent).is_some_and(same_url) => return None,
+        None => {}
+    }
+    let owners = anchors.remove(&network)?;
+    anchors.remove(&sibling);
+    anchors.insert(parent, owners);
+    Some(parent)
+}
+
+fn closest_above(anchors: &BTreeMap<IpNet, Owners>, network: IpNet) -> Option<&Owners> {
+    (0..network.prefix_len()).rev().find_map(|length| {
+        let above = IpNet::new(network.addr(), length).ok()?.trunc();
+        anchors.get(&above)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -290,5 +369,101 @@ mod tests {
             read(&path).unwrap(),
             [row("https://cloud.example/feed.csv", None, "manual")]
         );
+    }
+
+    fn anchored(rows: &[(&str, &str, &str)]) -> Vec<Row> {
+        rows.iter()
+            .map(|(url, network, source)| row(url, Some(network), source))
+            .collect()
+    }
+
+    fn aggregated(rows: &[(&str, &str, &str)]) -> BTreeSet<(String, String, String)> {
+        aggregate(anchored(rows))
+            .into_iter()
+            .map(|r| (r.url, r.network.unwrap().to_string(), r.source))
+            .collect()
+    }
+
+    fn set(rows: &[(&str, &str, &str)]) -> BTreeSet<(String, String, String)> {
+        rows.iter()
+            .map(|(u, n, s)| (u.to_string(), n.to_string(), s.to_string()))
+            .collect()
+    }
+
+    const A: &str = "https://a.example/feed.csv";
+    const B: &str = "https://b.example/feed.csv";
+
+    #[test]
+    fn aggregate_merges_halves_up_to_the_parent_object() {
+        let mut rows = vec![(A, "2001:db8::/32", "ripencc")];
+        let halves: Vec<String> = (0..4).map(|i| format!("2001:db8:{i}::/48")).collect();
+        let quarter: Vec<String> = (4..8).map(|i| format!("2001:db8:{i}::/48")).collect();
+        rows.extend(
+            halves
+                .iter()
+                .chain(&quarter)
+                .map(|n| (A, n.as_str(), "ripencc")),
+        );
+        assert_eq!(
+            aggregated(&rows),
+            set(&[
+                (A, "2001:db8::/32", "ripencc"),
+                (A, "2001:db8::/45", "ripencc")
+            ])
+        );
+    }
+
+    #[test]
+    fn aggregate_keeps_halves_without_an_anchor_above() {
+        let rows = [
+            (A, "192.0.2.0/25", "ripencc"),
+            (A, "192.0.2.128/25", "ripencc"),
+        ];
+        assert_eq!(aggregated(&rows), set(&rows));
+    }
+
+    #[test]
+    fn aggregate_keeps_halves_under_another_geofeed() {
+        let rows = [
+            (B, "192.0.0.0/16", "ripencc"),
+            (A, "192.0.2.0/25", "ripencc"),
+            (A, "192.0.2.128/25", "ripencc"),
+        ];
+        assert_eq!(aggregated(&rows), set(&rows));
+    }
+
+    #[test]
+    fn aggregate_keeps_halves_of_different_geofeeds_or_registries() {
+        let rows = [
+            (A, "192.0.0.0/16", "ripencc"),
+            (A, "192.0.2.0/25", "ripencc"),
+            (B, "192.0.2.128/25", "ripencc"),
+            (A, "192.0.3.0/25", "ripencc"),
+            (A, "192.0.3.128/25", "arin"),
+        ];
+        assert_eq!(aggregated(&rows), set(&rows));
+    }
+
+    #[test]
+    fn aggregate_keeps_halves_listing_two_geofeeds() {
+        let rows = [
+            (A, "192.0.0.0/16", "ripencc"),
+            (A, "192.0.2.0/25", "ripencc"),
+            (B, "192.0.2.0/25", "ripencc"),
+            (A, "192.0.2.128/25", "ripencc"),
+            (B, "192.0.2.128/25", "ripencc"),
+        ];
+        assert_eq!(aggregated(&rows), set(&rows));
+    }
+
+    #[test]
+    fn aggregate_leaves_unanchored_rows_alone() {
+        let manual = Row {
+            url: A.into(),
+            network: None,
+            source: MANUAL.into(),
+            asn: vec!["64500".parse().unwrap()],
+        };
+        assert_eq!(aggregate([manual.clone()]), [manual]);
     }
 }
