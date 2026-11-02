@@ -220,6 +220,33 @@ geofeed:        https://ignored.example/feed.csv
     }
 
     #[test]
+    fn keeps_only_iso_countries() {
+        let dump = "\
+inetnum:    45.4.204/23
+country:    UK
+
+inetnum:    192.0.2.0 - 192.0.2.255
+country:    YU
+
+inetnum:    198.51.100.0 - 198.51.100.255
+country:    CS
+
+inetnum:    203.0.113.0 - 203.0.113.255
+country:    XK
+";
+        let parsed = parse(dump.as_bytes(), Registry::Lacnic).unwrap();
+        let countries: Vec<_> = parsed
+            .assignments
+            .iter()
+            .map(|a| (a.network, a.country()))
+            .collect();
+        assert_eq!(
+            countries,
+            [(net("45.4.204.0/23"), "GB"), (net("203.0.113.0/24"), "XK")]
+        );
+    }
+
+    #[test]
     fn accepts_the_remark_spellings_seen_in_the_wild() {
         for remark in [
             "Geofeed https://a.example/g.csv",

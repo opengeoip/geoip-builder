@@ -67,14 +67,6 @@ fn field(fields: &[Cow<'_, str>], index: usize) -> Option<String> {
     (!value.is_empty()).then(|| value.to_string())
 }
 
-fn iso_country(code: String) -> Option<String> {
-    match code.as_str() {
-        "UK" => Some("GB".to_string()),
-        "XK" => Some(code),
-        _ => model::continent::continent(&code).map(|_| code),
-    }
-}
-
 const MAX_TEXT: usize = 100;
 
 fn text(fields: &[Cow<'_, str>], index: usize) -> Option<String> {
@@ -95,7 +87,7 @@ fn parse_line(line: &str) -> Option<Location> {
             if code.len() != 2 || !code.bytes().all(|b| b.is_ascii_alphabetic()) {
                 return None;
             }
-            iso_country(code)
+            model::continent::iso_country(&code).map(str::to_string)
         }
         None => None,
     };

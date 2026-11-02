@@ -304,7 +304,7 @@ mod tests {
             probe(1, "192.0.2.1", "FR", false),
             probe(2, "192.0.2.2", "BR", false),
             probe(3, "192.0.2.3", "FR", false),
-            probe(4, "192.0.2.4", "XK", false),
+            probe(4, "192.0.2.4", "ZZ", false),
             Probe {
                 asn: None,
                 ..probe(5, "192.0.2.5", "FR", false)
