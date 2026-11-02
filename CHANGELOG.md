@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.13](https://github.com/opengeoip/geoip-builder/compare/v0.4.12...v0.4.13) - 2026-11-02
+
+### Other
+
+- update Cargo.lock dependencies
+
 ## [0.4.12](https://github.com/opengeoip/geoip-builder/compare/v0.4.11...v0.4.12) - 2026-11-02
 
 ### Added
