@@ -8,7 +8,7 @@ use flate2::Compression;
 use flate2::write::GzEncoder;
 use ipnetwork::IpNetwork;
 use maxminddb::{Reader, WithinOptions};
-use model::continent::continent;
+use model::Country;
 use model::hash::fnv1a;
 use serde::Deserialize;
 
@@ -16,10 +16,6 @@ use crate::Log;
 
 const LOCALE: &str = "en";
 const FIRST_PLACE_ID: u32 = 1 << 24;
-const EUROPEAN_UNION: [&str; 27] = [
-    "AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GR", "HR", "HU", "IE", "IT",
-    "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK",
-];
 
 #[derive(Deserialize)]
 struct Iso<'a> {
@@ -241,14 +237,15 @@ fn write_locations<W: Write>(out: W, ids: &BTreeMap<Place, u32>, city: bool) -> 
     let mut rows: Vec<(&u32, &Place)> = ids.iter().map(|(place, id)| (id, place)).collect();
     rows.sort();
     for (id, place) in rows {
-        let continent = continent(&place.country);
+        let country = Country::parse(&place.country);
+        let continent = country.map(Country::continent);
         let mut row = vec![
             id.to_string(),
             LOCALE.to_string(),
             continent.map(|c| c.code()).unwrap_or_default().to_string(),
             continent.map(|c| c.name()).unwrap_or_default().to_string(),
             place.country.clone(),
-            String::new(),
+            country.map(Country::name).unwrap_or_default().to_string(),
         ];
         if city {
             row.extend([
@@ -261,7 +258,7 @@ fn write_locations<W: Write>(out: W, ids: &BTreeMap<Place, u32>, city: bool) -> 
                 String::new(),
             ]);
         }
-        row.push(u8::from(EUROPEAN_UNION.contains(&place.country.as_str())).to_string());
+        row.push(u8::from(country.is_some_and(Country::is_in_european_union)).to_string());
         out.write_record(&row)?;
     }
     out.flush()?;
@@ -423,9 +420,9 @@ mod tests {
         assert_eq!(
             places[1..],
             [
-                format!("{germany},en,EU,Europe,DE,,,,,,,,,1"),
-                format!("{france},en,EU,Europe,FR,,,,,,,,,1"),
-                format!("{},en,EU,Europe,DE,,HE,,,,Frankfurt,,,1", fields[1]),
+                format!("{germany},en,EU,Europe,DE,Germany,,,,,,,,1"),
+                format!("{france},en,EU,Europe,FR,France,,,,,,,,1"),
+                format!("{},en,EU,Europe,DE,Germany,HE,,,,Frankfurt,,,1", fields[1]),
             ]
         );
     }

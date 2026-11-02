@@ -43,7 +43,7 @@ geoip-builder export-csv          # convert out/*.mmdb into out/csv/
 | `city-locations-en.csv.gz` | `GeoLite2-City-Locations-en.csv` |
 | `asn-blocks-ipv4.csv.gz`, `asn-blocks-ipv6.csv.gz` | `GeoLite2-ASN-Blocks-IPv4.csv`, `-IPv6.csv` |
 
-The CSV files are read back from the `.mmdb` files, so both give the same answer for every address. The blocks point to the locations through `geoname_id`, but the databases have no GeoNames data: the identifiers are made up and do not match MaxMind's. A country gets a small number derived from its code (`FR` is 18002), a region or city a number above 16777216 derived from its country, region and city names. Both stay the same from one build to the next. Columns without a source stay empty: country and region names, coordinates, accuracy radius, metro code and time zone. `is_anonymous_proxy` and `is_satellite_provider` are always `0`, `is_anycast` is always empty.
+The CSV files are read back from the `.mmdb` files, so both give the same answer for every address. The blocks point to the locations through `geoname_id`, but the databases have no GeoNames data: the identifiers are made up and do not match MaxMind's. A country gets a small number derived from its code (`FR` is 18002), a region or city a number above 16777216 derived from its country, region and city names. Both stay the same from one build to the next. Columns without a source stay empty: region names, coordinates, accuracy radius, metro code and time zone. `is_anonymous_proxy` and `is_satellite_provider` are always `0`, `is_anycast` is always empty.
 
 ## Building your own catalog
 

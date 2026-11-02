@@ -15,17 +15,39 @@ fn iso(code: &str) -> Value {
     Value::map([("iso_code", Value::string(code))])
 }
 
-fn iso_country(country: Country) -> Value {
-    iso(country.as_str())
+fn names(name: &str) -> Value {
+    Value::map([("en", Value::string(name))])
+}
+
+fn country_value(country: Country) -> Value {
+    let mut entries = vec![
+        ("iso_code", Value::string(country.as_str())),
+        ("names", names(country.name())),
+    ];
+    if country.is_in_european_union() {
+        entries.push(("is_in_european_union", Value::Bool(true)));
+    }
+    Value::map(entries)
+}
+
+fn continent_value(country: Country) -> Value {
+    let continent = country.continent();
+    Value::map([
+        ("code", Value::string(continent.code())),
+        ("names", names(continent.name())),
+    ])
 }
 
 type Owner = (Option<Country>, Registry);
 
 fn base(country: Country, owner: Option<Owner>) -> Vec<(&'static str, Value)> {
-    let mut entries = vec![("country", iso_country(country))];
+    let mut entries = vec![
+        ("continent", continent_value(country)),
+        ("country", country_value(country)),
+    ];
     if let Some((registered, registry)) = owner {
         if let Some(registered) = registered {
-            entries.push(("registered_country", iso_country(registered)));
+            entries.push(("registered_country", country_value(registered)));
         }
         entries.push(("registry", Value::string(registry.as_str())));
     }
@@ -94,10 +116,7 @@ pub fn location_dbs(
                 entries.push(("subdivisions", Value::Array(vec![iso(region)])));
             }
             if let Some(city) = &location.city {
-                entries.push((
-                    "city",
-                    Value::map([("names", Value::map([("en", Value::string(city))]))]),
-                ));
+                entries.push(("city", Value::map([("names", names(city))])));
             }
             if let Some(postal) = &location.postal {
                 entries.push(("postal", Value::map([("code", Value::string(postal))])));
@@ -130,6 +149,51 @@ mod tests {
             country: Country::parse(country),
             registry,
         }
+    }
+
+    #[test]
+    fn records_name_the_country_and_its_continent_like_geolite2() {
+        let delegations = vec![delegation("90.0.0.0/9", "FR", Registry::RipeNcc)];
+        let assignments = vec![assignment("90.68.0.0/16", "UK", Registry::RipeNcc)];
+        let (db, _, _) = location_dbs(delegations, assignments, vec![], 0);
+        let reader = read(db);
+        let text = |ip, path: &[maxminddb::PathElement<'_>]| get::<String>(&reader, ip, path);
+        let flag = |ip, path: &[maxminddb::PathElement<'_>]| get::<bool>(&reader, ip, path);
+        assert_eq!(
+            text("90.1.1.1", &path!["country", "names", "en"]).as_deref(),
+            Some("France")
+        );
+        assert_eq!(
+            text("90.1.1.1", &path!["continent", "code"]).as_deref(),
+            Some("EU")
+        );
+        assert_eq!(
+            text("90.1.1.1", &path!["continent", "names", "en"]).as_deref(),
+            Some("Europe")
+        );
+        assert_eq!(
+            flag("90.1.1.1", &path!["country", "is_in_european_union"]),
+            Some(true)
+        );
+        assert_eq!(
+            text("90.68.1.1", &path!["country", "names", "en"]).as_deref(),
+            Some("United Kingdom")
+        );
+        assert_eq!(
+            flag("90.68.1.1", &path!["country", "is_in_european_union"]),
+            None
+        );
+        assert_eq!(
+            text("90.68.1.1", &path!["registered_country", "names", "en"]).as_deref(),
+            Some("France")
+        );
+        assert_eq!(
+            flag(
+                "90.68.1.1",
+                &path!["registered_country", "is_in_european_union"]
+            ),
+            Some(true)
+        );
     }
 
     #[test]

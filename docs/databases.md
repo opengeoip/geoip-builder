@@ -20,6 +20,8 @@ Every source goes through the same filter before a country reaches a database: o
 
 Anything else is dropped: `EU` and `AP` (regions), `ZZ` (unknown), withdrawn codes such as `YU`, `CS`, `AN`, `SU` or `FX`, and the typos seen in geofeeds (`AB`, `NY`, `OS`...). A registry object or geofeed entry with such a code is ignored, as if it had no country, and the less precise layer underneath answers. A block of the registry statistics with such a code (the RIPE NCC records a few hundred as `EU`) gets no country of its own, but still counts as space of that registry, so sub-allocations and geofeeds inside it apply, without a `registered_country`.
 
+`country` and `registered_country` carry the code, the English name and, for the 27 members of the European Union, `is_in_european_union`, as in GeoLite2. The names are the short ones GeoNames and MaxMind use ("Russia", "South Korea", "DR Congo") instead of the official ISO ones. Each record also has the `continent` of its country, with its code and English name. GeoLite2 has a `geoname_id` and names in other languages too. These databases have neither, since no GeoNames data goes into them.
+
 ## Which geofeeds are trusted
 
 A geofeed is a CSV file in which an operator says where its prefixes are ([RFC 8805](https://www.rfc-editor.org/rfc/rfc8805)). Anyone can publish one, so an entry is only kept when its publisher owns the prefix:
