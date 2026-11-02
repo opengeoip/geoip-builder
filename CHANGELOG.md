@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.12](https://github.com/opengeoip/geoip-builder/compare/v0.4.11...v0.4.12) - 2026-11-02
+
+### Added
+
+- add country names, continent and EU membership to the location databases ([#75](https://github.com/opengeoip/geoip-builder/pull/75))
+
+### Fixed
+
+- keep only ISO 3166-1 country codes from every source ([#68](https://github.com/opengeoip/geoip-builder/pull/68))
+
+### Other
+
+- update Cargo.lock dependencies
+- add a Country type for the codes of the location databases ([#70](https://github.com/opengeoip/geoip-builder/pull/70))
+
 ## [0.4.11](https://github.com/opengeoip/geoip-builder/compare/v0.4.10...v0.4.11) - 2026-10-29
 
 ### Added
