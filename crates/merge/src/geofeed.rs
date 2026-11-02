@@ -102,6 +102,8 @@ pub fn authorize_geofeeds(
 
 #[cfg(test)]
 mod tests {
+    use model::Country;
+
     use super::*;
 
     fn net(s: &str) -> IpNet {
@@ -111,7 +113,7 @@ mod tests {
     fn location(network: &str, country: Option<&str>) -> Location {
         Location {
             network: net(network),
-            country: country.map(str::to_string),
+            country: country.and_then(Country::parse),
             region: None,
             city: None,
             postal: None,
@@ -129,7 +131,7 @@ mod tests {
     fn keeps_anchors_inside_a_delegation_of_their_registry() {
         let delegation = |network: &str, registry| Delegation {
             network: net(network),
-            country: "US".into(),
+            country: Country::parse("US"),
             registry,
         };
         let delegations = [
@@ -203,7 +205,7 @@ mod tests {
         let (accepted, stats) = authorize_geofeeds(&references, &feeds);
         let accepted: Vec<String> = accepted
             .iter()
-            .map(|l| format!("{} {}", l.network, l.country.as_deref().unwrap()))
+            .map(|l| format!("{} {}", l.network, l.country.unwrap()))
             .collect();
         assert_eq!(accepted, ["11.0.1.0/24 FR", "11.0.200.0/24 DE"]);
         assert_eq!(

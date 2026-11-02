@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use anyhow::Result;
 use ipnet::IpNet;
-use model::{Assignment, GeofeedRef, Registry, country_code};
+use model::{Assignment, Country, GeofeedRef, Registry};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Stats {
@@ -38,7 +38,7 @@ impl Object {
         let Some(networks) = parse_networks(&networks) else {
             return;
         };
-        if let Some(country) = object.country.as_deref().and_then(country_code) {
+        if let Some(country) = object.country.as_deref().and_then(Country::parse) {
             out.stats.countries += 1;
             out.assignments
                 .extend(networks.iter().map(|&network| Assignment {
@@ -187,7 +187,7 @@ geofeed:        https://ignored.example/feed.csv
             parsed.assignments,
             [Assignment {
                 network: net("195.167.179.160/29"),
-                country: *b"GB",
+                country: Country::parse("GB").unwrap(),
                 registry: Registry::RipeNcc,
             }]
         );
@@ -238,7 +238,7 @@ country:    XK
         let countries: Vec<_> = parsed
             .assignments
             .iter()
-            .map(|a| (a.network, a.country()))
+            .map(|a| (a.network, a.country.as_str()))
             .collect();
         assert_eq!(
             countries,

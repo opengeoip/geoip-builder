@@ -3,7 +3,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anyhow::{Context, Result, bail};
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
-use model::{Delegation, Registry};
+use model::{Country, Delegation, Registry};
 
 pub fn parse<R: BufRead>(reader: R) -> Result<Vec<Delegation>> {
     let mut delegations = Vec::new();
@@ -31,10 +31,7 @@ fn parse_line(line: &str, out: &mut Vec<Delegation>) -> Result<()> {
     if status != "allocated" && status != "assigned" {
         return Ok(());
     }
-    let country = fields[1].to_ascii_uppercase();
-    if country.len() != 2 || !country.bytes().all(|b| b.is_ascii_alphabetic()) || country == "ZZ" {
-        return Ok(());
-    }
+    let country = Country::parse(fields[1]);
     let registry: Registry = fields[0].parse()?;
     match fields[2] {
         "ipv4" => {
@@ -43,7 +40,7 @@ fn parse_line(line: &str, out: &mut Vec<Delegation>) -> Result<()> {
             for network in ipv4_range_to_networks(start, count)? {
                 out.push(Delegation {
                     network: IpNet::V4(network),
-                    country: country.clone(),
+                    country,
                     registry,
                 });
             }
@@ -99,17 +96,18 @@ ripencc|*|ipv4|*|100901|summary
 ripencc|PS|ipv4|1.178.112.0|4096|20071126|allocated|bdc40251
 ripencc|FR|ipv4|2.0.0.0|1536|20100712|allocated|aaa
 ripencc|DE|ipv6|2001:608::|32|19990812|allocated|bbb
+ripencc|EU|ipv4|139.191.0.0|65536|19930125|assigned|ddd
 ripencc||ipv4|5.0.0.0|256||available|
 ripencc|NL|asn|1101|1|19930901|allocated|ccc
 ripencc|ZZ|ipv4|6.0.0.0|256|20100712|reserved|
 ";
 
     #[test]
-    fn parses_allocations_and_skips_the_rest() {
+    fn parses_allocations_and_keeps_blocks_without_a_country() {
         let delegations = parse(SAMPLE.as_bytes()).unwrap();
         let networks: Vec<String> = delegations
             .iter()
-            .map(|d| format!("{} {}", d.network, d.country))
+            .map(|d| format!("{} {}", d.network, d.country.map_or("-", Country::as_str)))
             .collect();
         assert_eq!(
             networks,
@@ -117,7 +115,8 @@ ripencc|ZZ|ipv4|6.0.0.0|256|20100712|reserved|
                 "1.178.112.0/20 PS",
                 "2.0.0.0/22 FR",
                 "2.0.4.0/23 FR",
-                "2001:608::/32 DE"
+                "2001:608::/32 DE",
+                "139.191.0.0/16 -"
             ]
         );
         assert!(delegations.iter().all(|d| d.registry == Registry::RipeNcc));

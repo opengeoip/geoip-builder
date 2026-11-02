@@ -1,9 +1,11 @@
 pub mod continent;
+pub mod country;
 pub mod date;
 pub mod hash;
 pub mod prefix_map;
 pub mod special;
 
+pub use country::Country;
 pub use prefix_map::{PrefixMap, range_to_networks};
 
 use std::fmt;
@@ -77,7 +79,7 @@ impl FromStr for Registry {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Delegation {
     pub network: IpNet,
-    pub country: String,
+    pub country: Option<Country>,
     pub registry: Registry,
 }
 
@@ -110,19 +112,8 @@ pub struct Route {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Assignment {
     pub network: IpNet,
-    pub country: [u8; 2],
+    pub country: Country,
     pub registry: Registry,
-}
-
-impl Assignment {
-    pub fn country(&self) -> &str {
-        std::str::from_utf8(&self.country).unwrap_or("ZZ")
-    }
-}
-
-pub fn country_code(value: &str) -> Option<[u8; 2]> {
-    let bytes = continent::iso_country(value)?.as_bytes();
-    Some([bytes[0], bytes[1]])
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -134,7 +125,7 @@ pub struct GeofeedRef {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Location {
     pub network: IpNet,
-    pub country: Option<String>,
+    pub country: Option<Country>,
     pub region: Option<String>,
     pub city: Option<String>,
     pub postal: Option<String>,
