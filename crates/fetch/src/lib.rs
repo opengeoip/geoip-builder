@@ -59,6 +59,15 @@ pub struct Options {
     pub global_timeout: Option<Duration>,
     pub max_size: u64,
     pub verify_tls: bool,
+    pub github_token: Option<String>,
+}
+
+// Unauthenticated calls share the 60 requests/hour limit of the runner's IP.
+fn github_token() -> Option<String> {
+    ["GH_TOKEN", "GITHUB_TOKEN"]
+        .into_iter()
+        .filter_map(|name| std::env::var(name).ok())
+        .find(|token| !token.is_empty())
 }
 
 impl Default for Options {
@@ -68,6 +77,7 @@ impl Default for Options {
             global_timeout: None,
             max_size: u64::MAX,
             verify_tls: true,
+            github_token: github_token(),
         }
     }
 }
@@ -76,6 +86,7 @@ pub struct Fetcher {
     agent: Agent,
     dir: PathBuf,
     max_size: u64,
+    github_token: Option<String>,
 }
 
 impl Fetcher {
@@ -101,6 +112,7 @@ impl Fetcher {
             agent,
             dir,
             max_size: options.max_size,
+            github_token: options.github_token,
         })
     }
 
@@ -119,6 +131,11 @@ impl Fetcher {
             .filter(|meta: &Meta| meta.url == source.url);
 
         let mut request = self.agent.get(&source.url);
+        if let Some(token) = &self.github_token
+            && source.url.starts_with("https://api.github.com/")
+        {
+            request = request.header("Authorization", &format!("Bearer {token}"));
+        }
         if let Some(meta) = &previous {
             if let Some(etag) = &meta.etag {
                 request = request.header("If-None-Match", etag);
