@@ -45,6 +45,7 @@ pub fn geofeed_fetcher(data_dir: &Path, global_timeout: Duration) -> Result<Fetc
             global_timeout: Some(global_timeout),
             max_size: 256 << 20,
             verify_tls: false,
+            github_token: None,
         },
     )
 }
